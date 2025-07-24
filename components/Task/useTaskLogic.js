@@ -29,7 +29,8 @@ const useTaskLogic = (
   setApiError,
   isLogging,
   initialSpeed,
-  onManualOfflineTrigger
+  onManualOfflineTrigger,
+  isSleepMode
 ) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -706,7 +707,7 @@ const useTaskLogic = (
         activityIntervalRef.current = null;
       }
     };
-  }, [authToken, socket, isOnline]);
+  }, [authToken, socket, isOnline, isSleepMode]);
 
   useEffect(() => {
     if (endedActivityRestart && isOnline) {

@@ -20,7 +20,7 @@ import { Download, RefreshCcw } from 'lucide-react';
 import { DEFAULT_SCREENSHOT_TYPE } from '../../utils/constants';
 import ApiSuccessLogger from '../SuccessToast';
 
-function ActivityTracker({ isOnline }) {
+function ActivityTracker({ isOnline, isSleepMode }) {
   const dispatch = useDispatch();
 
   const [isUpdateRequired, setIsUpdateRequired] = useState(false);
@@ -371,6 +371,7 @@ function ActivityTracker({ isOnline }) {
             endedActivityRestart={endedActivityRestart}
             setEndedActivityRestart={setEndedActivityRestart}
             setIsLoading={setIsLoading}
+            isSleepMode={isSleepMode}
           />
         </Loader>
       )}

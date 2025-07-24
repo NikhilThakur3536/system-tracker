@@ -42,7 +42,15 @@ const ActivityLogger = () => {
 
   return (
     <SyncLoader isSyncing={isSyncing}>
-      {isSleepMode ? <SleepMode /> : <ActivityTracker isOnline={isOnline} />}
+      {isSleepMode ? (
+        <SleepMode />
+      ) : (
+        <ActivityTracker
+          isOnline={isOnline}
+          key={isSleepMode}
+          isSleepMode={isSleepMode}
+        />
+      )}
     </SyncLoader>
   );
 };

@@ -35,6 +35,7 @@ function ActivityLogger({
   endedActivityRestart,
   setEndedActivityRestart,
   setIsLoading,
+  isSleepMode,
 }) {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -426,6 +427,7 @@ function ActivityLogger({
                 updateTrackedHourDetails={updateTrackedHourDetails}
                 initialSpeed={initialSpeed}
                 onManualOfflineTrigger={manualOfflineTriggerHandler}
+                isSleepMode={isSleepMode}
               />
 
               {/* Stats Grid */}
