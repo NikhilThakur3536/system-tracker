@@ -689,16 +689,28 @@ if (!gotTheLock) {
       mainWindow.webContents.send('windows-sleep-mode', true);
     });
 
-    powerMonitor.on('resume', () => {
+    powerMonitor.on('resume', async () => {
+      const isDev = await import('electron-is-dev').then((mod) => mod.default);
+
+      const execPath = isDev ? process.argv[0] : process.execPath;
+      const args = isDev ? [path.join(__dirname, '..')] : [];
+
       setTimeout(() => {
         try {
-          app.relaunch();
+          spawn(execPath, args, {
+            detached: true,
+            stdio: 'ignore',
+          }).unref();
+
+          setTimeout(() => {
+            mainWindow.webContents.send('windows-sleep-mode', false);
+          }, 5000);
         } catch (err) {
-          console.error('Failed to relaunch app after resume:', err);
+          console.error('Failed to relaunch app:', err);
         } finally {
-          app.exit(0);
+          app.quit();
         }
-      }, 500);
+      }, 1000);
     });
   });
 

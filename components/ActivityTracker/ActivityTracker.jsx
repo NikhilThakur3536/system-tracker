@@ -249,7 +249,7 @@ function ActivityTracker({ isOnline }) {
   const [canCheckUpdate, setCanCheckUpdate] = useState(true);
 
   useEffect(() => {
-    if (domainId) {
+    if (domainId && isOnline) {
       dispatch(appUpdateChecker({ domainId })).then((data) => {
         if (data?.success) {
           const isUpdateRequirement = data?.data?.version !== TRACKER_VERSION;
@@ -305,31 +305,32 @@ function ActivityTracker({ isOnline }) {
 
   return (
     <>
-      {isUpdateRequired ? (
-        <div
-          title="Update available"
-          className="cursor-pointer fixed z-50 top-2 right-2 flex items-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-300 px-4 py-2 rounded-lg shadow-md"
-          onClick={() => setUpdateRequiredModal(true)}
-        >
-          <span className="font-medium">Update available</span>
-          <button className="inline-flex items-center gap-1 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium px-3 py-1 rounded transition">
-            <Download className="!w-4 !h-4" />
-          </button>
-        </div>
-      ) : (
-        canCheckUpdate && (
+      {isOnline &&
+        (isUpdateRequired ? (
           <div
-            title="Check for updates"
-            className="cursor-pointer fixed z-50 top-2 right-2 flex items-center gap-2 bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded-lg shadow-md"
-            onClick={updateCheckHandler}
+            title="Update available"
+            className="cursor-pointer fixed z-50 top-2 right-2 flex items-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-300 px-4 py-2 rounded-lg shadow-md"
+            onClick={() => setUpdateRequiredModal(true)}
           >
-            <span className="font-medium">Check for Update</span>
-            <button className="inline-flex items-center gap-1 font-medium rounded transition">
-              <RefreshCcw className="!w-4 !h-4" />
+            <span className="font-medium">Update available</span>
+            <button className="inline-flex items-center gap-1 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium px-3 py-1 rounded transition">
+              <Download className="!w-4 !h-4" />
             </button>
           </div>
-        )
-      )}
+        ) : (
+          canCheckUpdate && (
+            <div
+              title="Check for updates"
+              className="cursor-pointer fixed z-50 top-2 right-2 flex items-center gap-2 bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded-lg shadow-md"
+              onClick={updateCheckHandler}
+            >
+              <span className="font-medium">Check for Update</span>
+              <button className="inline-flex items-center gap-1 font-medium rounded transition">
+                <RefreshCcw className="!w-4 !h-4" />
+              </button>
+            </div>
+          )
+        ))}
 
       {updateRequiredModal ? (
         <AppUpdater
