@@ -28,7 +28,7 @@ export default function PastActivities({ authToken, ownerId, isOnline }) {
         );
       }
     }
-  }, [authToken, isOnline]);
+  }, [authToken, ownerId, isOnline]);
 
   const getLineChartData = () => {
     return pastActivities

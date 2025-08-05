@@ -73,7 +73,7 @@ const AppUsage = ({ authToken, ownerId, isOnline }) => {
         );
       }
     }
-  }, [authToken, ownerId, appUsages]);
+  }, [authToken, ownerId, isOnline]);
 
   useEffect(() => {
     if (appUsages && appUsages?.length > 0) {
