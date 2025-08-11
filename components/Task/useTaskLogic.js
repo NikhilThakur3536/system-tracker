@@ -11,7 +11,6 @@ const useTaskLogic = (
   authToken,
   stats,
   activityInterval,
-  socket,
   setActiveSession,
   stopLogging,
   startLogging,
@@ -62,11 +61,6 @@ const useTaskLogic = (
   const [projectTaskActivityId, setProjectTaskActivityId] = useState(null);
   const [projectTaskActivityDetailId, setProjectTaskActivityDetailId] =
     useState(null);
-  const [
-    employeeRealtimeProjectTaskActivityId,
-    setEmployeeRealtimeProjectTaskActivityId,
-  ] = useState(null);
-  const [activityLength, setActivityLength] = useState(0);
 
   useEffect(() => {
     setProjectId('');
@@ -109,46 +103,19 @@ const useTaskLogic = (
     projectTaskActivityDetailIdRef.current = projectTaskActivityDetailId;
   }, [projectTaskActivityDetailId]);
 
-  useEffect(() => {
-    if (
-      employeeRealtimeProjectTaskActivityId &&
-      employeeRealtimeProjectTaskActivityId !== null &&
-      stats?.appWebsiteDetails
-    ) {
-      if (activityLength !== stats?.appWebsiteDetails?.length) {
-        if (socket) {
-          socket.emit('/project/task/activity/update', {
-            employeeRealtimeProjectTaskActivityId,
-            appWebsites: stats?.appWebsites || [],
-            appWebsiteDetails: stats?.appWebsiteDetails,
-          });
-          socket.on('/project/task/activity/update', () => {});
-        } else {
-          console.error('Socket f not connected!');
-        }
-      }
-      setActivityLength(stats?.appWebsiteDetails?.length);
-    }
-  }, [
-    stats?.appWebsiteDetails,
-    employeeRealtimeProjectTaskActivityId,
-    socket,
-    activityLength,
-  ]);
-
   const fetchSpeed = useCallback(async () => {
-    if (socket && isLogging && authToken && isOnline) {
+    if (isLogging && authToken && isOnline) {
       const speed = await getSpeed();
       return speed || 'offline';
     }
-  }, [socket, isLogging, authToken, isOnline]);
+  }, [isLogging, authToken, isOnline]);
 
   const getIpAddress = useCallback(async () => {
-    if (socket && authToken && isOnline) {
+    if (authToken && isOnline) {
       const ipAddress = window.electronAPI.getIpAddress();
       return ipAddress || 'unknown';
     }
-  }, [socket, isLogging, authToken, isOnline]);
+  }, [isLogging, authToken, isOnline]);
 
   // ----- Offline tracked time start -------
 
@@ -469,24 +436,6 @@ const useTaskLogic = (
           window.electronAPI.sendActivityData(userData);
           startLogging();
 
-          if (socket) {
-            let payload = {
-              projectTaskId,
-              description,
-              timezone: getSystemTimezone(),
-              ...geoLocation,
-              speed,
-            };
-
-            socket.emit('/project/task/activity/start', payload);
-            socket.on('/project/task/activity/start', (response) => {
-              const id = response?.data?.id;
-              setEmployeeRealtimeProjectTaskActivityId(id);
-            });
-          } else {
-            console.error('Socket is not connected!');
-          }
-
           projectDetailActions();
         } else {
           console.log(status?.error);
@@ -581,18 +530,6 @@ const useTaskLogic = (
       );
 
       if (endMainActivity?.success) {
-        if (socket) {
-          socket.emit('/project/task/activity/end', {
-            employeeRealtimeProjectTaskActivityId,
-          });
-
-          socket.on('/project/task/activity/end', () => {
-            setEmployeeRealtimeProjectTaskActivityId(null);
-          });
-        } else {
-          console.error('Socket is not connected!');
-        }
-
         setProjectId('');
         setProjectTaskId('');
         setProjectTaskActivityId(null);
@@ -674,23 +611,6 @@ const useTaskLogic = (
 
             try {
               await startStopActivityDetailHandler(startUserData);
-              if (isOnline) {
-                if (socket && authToken) {
-                  let payload = {
-                    projectTaskId: storedProjectTaskId,
-                    description,
-                    timezone: getSystemTimezone(),
-                  };
-
-                  socket.emit('/project/task/activity/start', payload);
-                  socket.on('/project/task/activity/start', (response) => {
-                    const id = response?.data?.id;
-                    setEmployeeRealtimeProjectTaskActivityId(id);
-                  });
-                } else {
-                  console.error('Socket is not connected!');
-                }
-              }
             } catch (error) {
               console.error('Error in start activity handler:', error);
             }
@@ -707,7 +627,7 @@ const useTaskLogic = (
         activityIntervalRef.current = null;
       }
     };
-  }, [authToken, socket, isOnline, isSleepMode]);
+  }, [authToken, isOnline, isSleepMode]);
 
   useEffect(() => {
     if (endedActivityRestart && isOnline) {
@@ -752,29 +672,7 @@ const useTaskLogic = (
                       };
                       window.electronAPI.sendActivityData(userData);
                       startLogging();
-
-                      if (socket) {
-                        projectDetailActions();
-
-                        let payload = {
-                          projectTaskId,
-                          description,
-                          timezone: getSystemTimezone(),
-                          ...geoLocation,
-                          speed,
-                        };
-
-                        socket.emit('/project/task/activity/start', payload);
-                        socket.on(
-                          '/project/task/activity/start',
-                          (response) => {
-                            const id = response?.data?.id;
-                            setEmployeeRealtimeProjectTaskActivityId(id);
-                          }
-                        );
-                      } else {
-                        console.error('Socket is not connected!');
-                      }
+                      projectDetailActions();
                     } else {
                       console.log(status?.error);
                     }
@@ -797,7 +695,7 @@ const useTaskLogic = (
         intervalStartTimeRef.current = Date.now();
       }
     }
-  }, [endedActivityRestart, authToken, socket, isOnline]);
+  }, [endedActivityRestart, authToken, isOnline]);
 
   return {
     projectId,

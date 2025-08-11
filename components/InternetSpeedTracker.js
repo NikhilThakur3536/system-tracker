@@ -3,7 +3,6 @@ import { getSpeed } from '../utils/helpers';
 
 export default function InternetSpeedTracker({
   isOnline,
-  socket,
   interval,
   isLogging,
   setInitialSpeed,
@@ -17,7 +16,7 @@ export default function InternetSpeedTracker({
   const speedIntervalRef = useRef(null);
 
   const checkSpeed = useCallback(async () => {
-    if (socket && isOnline) {
+    if (isOnline) {
       try {
         const speed = await getSpeed();
         setInitialSpeed(speed);
@@ -28,10 +27,8 @@ export default function InternetSpeedTracker({
         const formattedSpeed = speedMbps.toFixed(2);
         setSpeed(formattedSpeed);
 
-        socket.emit('/internet-speed/add', {
-          speed,
-          ...geoLocation,
-        });
+        const speedPayload = { speed, ...geoLocation };
+        console.log(speedPayload);
 
         if (speedMbps < 2) {
           setSpeedClass('text-red-600');
@@ -45,7 +42,7 @@ export default function InternetSpeedTracker({
         setSpeed(null);
       }
     }
-  }, [socket, isOnline]);
+  }, [isOnline]);
 
   useEffect(() => {
     if (interval && isLogging && isOnline) {

@@ -6,6 +6,7 @@ const {
   powerMonitor,
   Tray,
   Menu,
+  crashReporter,
 } = require('electron');
 
 const sharp = require('sharp');
@@ -26,7 +27,8 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 const IS_PRODUCTION = false;
-const API_BASE_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz/api`;
+const API_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
+const API_BASE_URL = `${API_URL}/api`;
 
 // Offline & Online
 let isOffline = false;
@@ -536,19 +538,22 @@ async function createWindow() {
     closable: true,
   });
 
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
+    { urls: [`${API_URL}/*`] },
+    (details, callback) => {
+      details.requestHeaders['Cache-Control'] =
+        'no-cache, no-store, must-revalidate';
+      details.requestHeaders['Pragma'] = 'no-cache';
+      details.requestHeaders['Expires'] = '0';
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    }
+  );
+
   mainWindow.loadURL(
     isDev
       ? 'http://localhost:3000'
       : `file://${path.join(__dirname, '../out/index.html')}`
   );
-
-  setInterval(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.session.clearCache().then(() => {
-        console.log('Cache cleared at:: ', new Date().toLocaleTimeString());
-      });
-    }
-  }, CACHE_CLEAR_INTERVAL);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

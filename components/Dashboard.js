@@ -13,7 +13,6 @@ import {
 import Task from './Task/Task';
 import PastActivities from './PastActivities';
 import { gettingEmployeeActionsList } from '../redux/employee/employeeActions';
-import io from 'socket.io-client';
 import InternetSpeedTracker from './InternetSpeedTracker';
 import AppUsage from './AppUsage';
 import { BASE_URL, IS_PRODUCTION, TRACKER_VERSION } from '../utils/constants';
@@ -43,7 +42,6 @@ function ActivityLogger({
   );
 
   const [ownerId, setOwnerId] = useState(null);
-  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     if (!isLogging) {
@@ -56,28 +54,6 @@ function ActivityLogger({
       );
     }
   }, [isLogging]);
-
-  useEffect(() => {
-    if (ownerId && authToken && isOnline) {
-      const socketInstance = io(
-        `${BASE_URL}/employee?token=${authToken}&ownerId=${ownerId}`
-      );
-
-      setSocket(socketInstance);
-
-      socketInstance.on('connect', () => {
-        console.log('Socket connection successful!');
-      });
-
-      socketInstance.on('connect_error', (error) => {
-        console.error('Socket connection error:', error, socketInstance);
-      });
-
-      return () => {
-        socketInstance.disconnect();
-      };
-    }
-  }, [ownerId, authToken, isOnline]);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showCannotLogoutModal, setShowCannotLogoutModal] = useState(false);
@@ -415,7 +391,6 @@ function ActivityLogger({
                 authToken={authToken}
                 stats={stats}
                 activityInterval={activityInterval}
-                socket={socket}
                 projectTaskId={projectTaskId}
                 setProjectTaskId={setProjectTaskId}
                 description={description}
@@ -485,7 +460,6 @@ function ActivityLogger({
                     <Gauge className="text-purple-600 text-xl sm:text-2xl" />
                     <p className="text-2xl sm:text-3xl font-bold">
                       <InternetSpeedTracker
-                        socket={socket}
                         interval={activityLocationInterval}
                         isOnline={isOnline}
                         key={isOnline}
