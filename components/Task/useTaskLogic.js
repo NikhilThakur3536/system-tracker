@@ -401,7 +401,7 @@ const useTaskLogic = (
       setIsLoading(true);
 
       const geoLocation = await window.electronAPI.getGeoLocation();
-      const speed = await fetchSpeed();
+      const speed = initialSpeed || (await fetchSpeed());
 
       const payload = {
         ownerId,
@@ -410,6 +410,8 @@ const useTaskLogic = (
         timezone: getSystemTimezone(),
         ...geoLocation,
         speed,
+        // trackerVersion: TRACKER_VERSION,
+        ipAddress: await getIpAddress(),
       };
 
       const activeSessionObj = {
@@ -424,16 +426,14 @@ const useTaskLogic = (
       localStorage.setItem('activeSession', JSON.stringify(activeSessionObj));
       localStorage.setItem('projectTaskId', projectTaskId);
 
-      dispatch(activityActions(authToken, 'start', payload)).then(
-        async (status) => {
+      dispatch(activityActions(authToken, 'start', payload))
+        .then(async (status) => {
           if (status?.success) {
             setProjectTaskActivityId(status?.id);
             localStorage.setItem('projectTaskActivityId', status?.id);
 
             const userData = {
               ownerId,
-              trackerVersion: TRACKER_VERSION,
-              ipAddress: await getIpAddress(),
             };
             window.electronAPI.sendActivityData(userData);
             startLogging();
@@ -442,8 +442,8 @@ const useTaskLogic = (
           } else {
             console.log(status?.error);
           }
-        }
-      );
+        })
+        .finally(() => setIsLoading(false));
     }
   };
 
@@ -479,7 +479,6 @@ const useTaskLogic = (
       scroll: stats?.scrollCount || 0,
       keystroke: stats?.keyCount,
       keyPressed: stats?.accumulatedText,
-      trackerVersion: TRACKER_VERSION,
       appWebsites: stats?.appWebsites,
       appWebsiteDetails: stats?.appWebsiteDetails,
     };
@@ -658,6 +657,7 @@ const useTaskLogic = (
                   description: storedDescription,
                   timezone: getSystemTimezone(),
                   ...geoLocation,
+                  trackerVersion: TRACKER_VERSION,
                   speed,
                 };
 
@@ -669,8 +669,6 @@ const useTaskLogic = (
 
                       const userData = {
                         ownerId,
-                        trackerVersion: TRACKER_VERSION,
-                        ipAddress: await getIpAddress(),
                       };
                       window.electronAPI.sendActivityData(userData);
                       startLogging();

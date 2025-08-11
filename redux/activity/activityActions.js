@@ -6,7 +6,7 @@ export function activityActions(authToken, activityType, payload, isDetail) {
   return async () => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/employee${isDetail ? '/v2' : ''}/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
+        `${API_BASE_URL}/employee${isDetail ? '/v2' : activityType === 'start' ? '/v3' : ''}/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
         payload,
         {
           headers: {
