@@ -5,6 +5,7 @@ import { activityActions } from '../../redux/activity/activityActions';
 import { BASE_URL, TRACKER_VERSION } from '../../utils/constants';
 import { getSpeed, getSystemTimezone } from '../../utils/helpers';
 import { DEFAULT_SCREENSHOT_TYPE } from '../../utils/constants';
+import axios from 'axios';
 
 const useTaskLogic = (
   ownerId,
@@ -111,9 +112,17 @@ const useTaskLogic = (
   }, [isLogging, authToken, isOnline]);
 
   const getIpAddress = useCallback(async () => {
+    let ipAddress = 'offline';
     if (authToken && isOnline) {
-      const ipAddress = window.electronAPI.getIpAddress();
-      return ipAddress || 'unknown';
+      try {
+        const response = await axios.get('https://api.ipify.org?format=json');
+        ipAddress = response.data.ip;
+      } catch (error) {
+        ipAddress = 'unknown';
+        console.error('Failed to fetch ip address:', error.message);
+      }
+
+      return ipAddress;
     }
   }, [isLogging, authToken, isOnline]);
 
@@ -166,11 +175,6 @@ const useTaskLogic = (
   }
 
   const startStopActivityDetailHandler = async (startUserData) => {
-    let ipAddress = 'offline';
-    if (isOnline) {
-      ipAddress = await getIpAddress();
-    }
-
     const dispatchStartStop = () => {
       const updatedStats = statsRef.current;
       const lastStats = lastStatsRef.current;
@@ -224,8 +228,6 @@ const useTaskLogic = (
                 {
                   ownerId,
                   projectTaskActivityDetailId: currentActivityDetailId,
-                  trackerVersion: TRACKER_VERSION,
-                  ipAddress,
                   appWebsites: updatedStats?.appWebsites || [],
                   ...activityDifference,
                 },
@@ -279,9 +281,6 @@ const useTaskLogic = (
           projectTaskActivityId:
             projectTaskActivityId ||
             localStorage.getItem('projectTaskActivityId'),
-
-          trackerVersion: TRACKER_VERSION,
-          ipAddress,
           appWebsites: updatedStats?.appWebsites || [],
           ...activityDifference,
           startTime: new Date(intervalStartTimeRef.current).toISOString(),
@@ -425,22 +424,26 @@ const useTaskLogic = (
       localStorage.setItem('activeSession', JSON.stringify(activeSessionObj));
       localStorage.setItem('projectTaskId', projectTaskId);
 
-      dispatch(activityActions(authToken, 'start', payload)).then((status) => {
-        if (status?.success) {
-          setProjectTaskActivityId(status?.id);
-          localStorage.setItem('projectTaskActivityId', status?.id);
+      dispatch(activityActions(authToken, 'start', payload)).then(
+        async (status) => {
+          if (status?.success) {
+            setProjectTaskActivityId(status?.id);
+            localStorage.setItem('projectTaskActivityId', status?.id);
 
-          const userData = {
-            ownerId,
-          };
-          window.electronAPI.sendActivityData(userData);
-          startLogging();
+            const userData = {
+              ownerId,
+              trackerVersion: TRACKER_VERSION,
+              ipAddress: await getIpAddress(),
+            };
+            window.electronAPI.sendActivityData(userData);
+            startLogging();
 
-          projectDetailActions();
-        } else {
-          console.log(status?.error);
+            projectDetailActions();
+          } else {
+            console.log(status?.error);
+          }
         }
-      });
+      );
     }
   };
 
@@ -452,10 +455,8 @@ const useTaskLogic = (
       activityIntervalRef.current = null;
     }
 
-    let ipAddress = 'offline';
-    if (isOnline) {
-      ipAddress = await window.electronAPI.getIpAddress();
-    }
+    let ipAddress = await getIpAddress();
+    console.log(ipAddress);
 
     const lastStats = lastStatsRef.current;
 
@@ -479,7 +480,6 @@ const useTaskLogic = (
       keystroke: stats?.keyCount,
       keyPressed: stats?.accumulatedText,
       trackerVersion: TRACKER_VERSION,
-      ipAddress,
       appWebsites: stats?.appWebsites,
       appWebsiteDetails: stats?.appWebsiteDetails,
     };
@@ -662,13 +662,15 @@ const useTaskLogic = (
                 };
 
                 dispatch(activityActions(authToken, 'start', payload)).then(
-                  (status) => {
+                  async (status) => {
                     if (status?.success) {
                       setProjectTaskActivityId(status?.id);
                       localStorage.setItem('projectTaskActivityId', status?.id);
 
                       const userData = {
                         ownerId,
+                        trackerVersion: TRACKER_VERSION,
+                        ipAddress: await getIpAddress(),
                       };
                       window.electronAPI.sendActivityData(userData);
                       startLogging();

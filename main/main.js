@@ -98,8 +98,6 @@ db.prepare(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ownerId TEXT,
     projectTaskActivityId TEXT,
-    trackerVersion TEXT,
-    ipAddress TEXT,
     appWebsites TEXT,
     mouseClick INTEGER,
     scroll INTEGER,
@@ -157,8 +155,6 @@ async function syncOfflineData() {
         appWebsiteDetails: row.appWebsiteDetails
           ? JSON.parse(row.appWebsiteDetails)
           : [],
-        trackerVersion: row.trackerVersion,
-        ipAddress: row.ipAddress ?? 'offline',
         startTime: row.intervalStartTime ?? '',
         endTime: row.intervalEndTime ?? '',
       })
@@ -371,8 +367,6 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
       INSERT INTO offlineStats (
         ownerId,
         projectTaskActivityId,
-        trackerVersion,
-        ipAddress,
         appWebsites,
         mouseClick,
         scroll,
@@ -386,16 +380,14 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
     ).run(
       data.ownerId,
       data.projectTaskActivityId,
-      data.trackerVersion,
-      data.ipAddress,
       JSON.stringify(data.appWebsites),
       data.mouseClick,
       data.scroll,
       data.keystroke,
       data.keyPressed,
-      JSON.stringify(data.appWebsiteDetails),
       data.startTime,
-      data.endTime
+      data.endTime,
+      JSON.stringify(data.appWebsiteDetails)
     );
   }
 });
@@ -1089,18 +1081,6 @@ ipcMain.handle('get-location', async () => {
   }
 
   return location;
-});
-
-ipcMain.handle('get-ip-address', async () => {
-  let ipAddress = null;
-  try {
-    const response = await axios.get('https://api.ipify.org?format=json');
-    ipAddress = response.data.ip;
-  } catch (error) {
-    console.error('Failed to fetch ip address:', error.message);
-  }
-
-  return ipAddress;
 });
 
 ipcMain.on('stop-logging', () => {

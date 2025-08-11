@@ -38,7 +38,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Getting geographical data
   getGeoLocation: () => ipcRenderer.invoke('get-location'),
-  getIpAddress: () => ipcRenderer.invoke('get-ip-address'),
 
   // Interval's data
   getCaptureInterval: (callback) => {

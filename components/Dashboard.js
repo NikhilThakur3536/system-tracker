@@ -462,9 +462,11 @@ function ActivityLogger({
                       <InternetSpeedTracker
                         interval={activityLocationInterval}
                         isOnline={isOnline}
-                        key={isOnline}
                         isLogging={isLogging}
                         setInitialSpeed={setInitialSpeed}
+                        authToken={authToken}
+                        ownerId={ownerId}
+                        key={isOnline}
                       />
                     </p>
                   </div>

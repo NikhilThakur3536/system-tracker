@@ -1,16 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSpeed } from '../utils/helpers';
+import { useDispatch } from 'react-redux';
+import { sendInternetSpeedGeolocation } from '../redux/activity/activityActions';
 
 export default function InternetSpeedTracker({
   isOnline,
   interval,
   isLogging,
   setInitialSpeed,
+  authToken,
+  ownerId,
 }) {
   if (!isOnline) {
     return <span className={`text-red-600`}>Offline</span>;
   }
 
+  const dispatch = useDispatch();
   const [speed, setSpeed] = useState(null);
   const [speedClass, setSpeedClass] = useState('');
   const speedIntervalRef = useRef(null);
@@ -27,9 +32,6 @@ export default function InternetSpeedTracker({
         const formattedSpeed = speedMbps.toFixed(2);
         setSpeed(formattedSpeed);
 
-        const speedPayload = { speed, ...geoLocation };
-        console.log(speedPayload);
-
         if (speedMbps < 2) {
           setSpeedClass('text-red-600');
         } else if (speedMbps >= 20) {
@@ -37,6 +39,9 @@ export default function InternetSpeedTracker({
         } else {
           setSpeedClass('text-yellow-600');
         }
+
+        const speedPayload = { ownerId, speed, ...geoLocation };
+        await dispatch(sendInternetSpeedGeolocation(authToken, speedPayload));
       } catch (error) {
         console.error('Error checking speed:', error);
         setSpeed(null);
