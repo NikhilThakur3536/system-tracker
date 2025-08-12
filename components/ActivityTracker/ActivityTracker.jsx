@@ -173,21 +173,23 @@ function ActivityTracker({ isOnline, isSleepMode }) {
                   setEndedActivityRestart(true);
                 } else {
                   setIsLoading(true);
+                  await restartOfflineLogging();
+                  setIsLoading(false);
 
-                  dispatch(
-                    removeActivityDetailTimeout(storedAuthToken, payload)
-                  )
-                    .then(async () => {
-                      await restartOfflineLogging();
-                      setIsLoading(false);
-                    })
-                    .catch((error) => {
-                      console.error(
-                        'Error removing activity detail timeout:',
-                        error
-                      );
-                      setIsLoading(false);
-                    });
+                  // dispatch(
+                  //   removeActivityDetailTimeout(storedAuthToken, payload)
+                  // )
+                  //   .then(async () => {
+                  //     await restartOfflineLogging();
+                  //     setIsLoading(false);
+                  //   })
+                  //   .catch((error) => {
+                  //     console.error(
+                  //       'Error removing activity detail timeout:',
+                  //       error
+                  //     );
+                  //     setIsLoading(false);
+                  //   });
                 }
               }
             );

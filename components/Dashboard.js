@@ -111,6 +111,7 @@ function ActivityLogger({
 
   const updateTrackedHourDetails = useCallback(
     (newSeconds, idleTimeInSeconds) => {
+      console.log('check tracked', newSeconds, idleTimeInSeconds);
       setUpdatedDetailsFromActivity({ newSeconds, idleTimeInSeconds });
     },
     [trackedHourDetails]

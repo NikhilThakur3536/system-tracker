@@ -6,7 +6,6 @@ const {
   powerMonitor,
   Tray,
   Menu,
-  crashReporter,
 } = require('electron');
 
 const sharp = require('sharp');

@@ -174,8 +174,8 @@ const useTaskLogic = (
     }
   }
 
-  const startStopActivityDetailHandler = async (startUserData) => {
-    const dispatchStartStop = () => {
+  const activityDataHandler = async () => {
+    const dipatchActivityDetailsInterval = () => {
       const updatedStats = statsRef.current;
       const lastStats = lastStatsRef.current;
 
@@ -216,59 +216,37 @@ const useTaskLogic = (
       };
 
       if (isOnline) {
-        const currentActivityDetailId =
-          localStorage.getItem('projectTaskActivityDetailId') ||
-          projectTaskActivityDetailIdRef.current;
+        const currentProjectActivityId =
+          projectTaskActivityId ||
+          localStorage.getItem('projectTaskActivityId');
 
-        const endActivityPromise = currentActivityDetailId
-          ? dispatch(
-              activityActions(
-                authToken,
-                'end',
-                {
-                  ownerId,
-                  projectTaskActivityDetailId: currentActivityDetailId,
-                  appWebsites: updatedStats?.appWebsites || [],
-                  ...activityDifference,
-                },
-                true
-              )
-            )
-              .then(async (status) => {
-                if (status?.success) {
-                  updateTrackedHourDetails(status?.totalTime, status?.idleTime);
-                  setProjectTaskActivityDetailId(null);
-                  localStorage.removeItem('projectTaskActivityDetailId');
-                } else {
-                  console.log(
-                    'End activity error:',
-                    status?.error?.data?.error
-                  );
-                  await serverOfflineTriggerHandler(status);
-                }
-              })
-              .catch(async (error) => {
-                console.log('End failed:', error);
-                await serverOfflineTriggerHandler(status);
-              })
-          : Promise.resolve();
+        const startTime = intervalStartTimeRef.current;
+        intervalStartTimeRef.current = Date.now();
 
-        endActivityPromise.finally(() => {
-          dispatch(activityActions(authToken, 'start', startUserData, true))
-            .then(async (status) => {
-              if (status?.success) {
-                setProjectTaskActivityDetailId(status?.id);
-                intervalStartTimeRef.current = Date.now();
-                localStorage.setItem('projectTaskActivityDetailId', status?.id);
-              } else {
-                console.log('Start activity error:', status?.error);
-                await serverOfflineTriggerHandler(status);
-              }
-            })
-            .catch(async (error) => {
-              console.log('Start failed:', error);
-              await serverOfflineTriggerHandler(status);
-            });
+        dispatch(
+          activityActions(
+            authToken,
+            'interval',
+            {
+              ownerId,
+              appWebsites: updatedStats?.appWebsites || [],
+              timezone: getSystemTimezone(),
+              projectTaskActivityId: currentProjectActivityId,
+              ...activityDifference,
+              startTime: new Date(startTime).toISOString(),
+              endTime: new Date().toISOString(),
+            },
+            true
+          )
+        ).then(async (status) => {
+          if (status?.success) {
+            updateTrackedHourDetails(status?.totalTime, status?.idleTime);
+            setProjectTaskActivityDetailId(status?.id);
+            localStorage.setItem('projectTaskActivityDetailId', status?.id);
+          } else {
+            console.log('End activity error:', status?.error?.data?.error);
+            await serverOfflineTriggerHandler(status);
+          }
         });
       } else {
         const now = Date.now();
@@ -342,7 +320,7 @@ const useTaskLogic = (
           }
 
           activityIntervalRef.current = setInterval(
-            dispatchStartStop,
+            dipatchActivityDetailsInterval,
             (activityInterval || 1) * 1000 * 60
           );
         }, remainingTime);
@@ -356,36 +334,16 @@ const useTaskLogic = (
     }
 
     activityIntervalRef.current = setInterval(
-      dispatchStartStop,
+      dipatchActivityDetailsInterval,
       (activityInterval || 1) * 1000 * 60
     );
   };
 
   const projectDetailActions = async () => {
-    const startUserData = {
-      ownerId,
-      timezone: getSystemTimezone(),
-    };
+    intervalStartTimeRef.current = Date.now();
 
-    try {
-      const status = await dispatch(
-        activityActions(authToken, 'start', startUserData, true)
-      );
-
-      if (status?.success) {
-        intervalStartTimeRef.current = Date.now();
-        setProjectTaskActivityDetailId(status?.id);
-        localStorage.setItem('projectTaskActivityDetailId', status?.id);
-      } else {
-        console.log('Start activity failed:', status?.error);
-      }
-    } catch (error) {
-      console.error('Error dispatching activity start:', error);
-    } finally {
-      setIsLoading(false);
-    }
-
-    startStopActivityDetailHandler(startUserData);
+    setIsLoading(false);
+    await activityDataHandler();
   };
 
   const handleFormSubmit = async (e) => {
@@ -410,7 +368,7 @@ const useTaskLogic = (
         timezone: getSystemTimezone(),
         ...geoLocation,
         speed,
-        // trackerVersion: TRACKER_VERSION,
+        trackerVersion: TRACKER_VERSION,
         ipAddress: await getIpAddress(),
       };
 
@@ -473,29 +431,29 @@ const useTaskLogic = (
       ),
     };
 
-    const payload = {
-      ownerId,
-      mouseClick: stats?.clickCount,
-      scroll: stats?.scrollCount || 0,
-      keystroke: stats?.keyCount,
-      keyPressed: stats?.accumulatedText,
-      appWebsites: stats?.appWebsites,
-      appWebsiteDetails: stats?.appWebsiteDetails,
-    };
-
     try {
       const currentActivityDetailId =
         localStorage.getItem('projectTaskActivityDetailId') ||
         projectTaskActivityDetailIdRef.current;
+      const currentProjectActivityId =
+        projectTaskActivityId || localStorage.getItem('projectTaskActivityId');
+
       if (currentActivityDetailId) {
+        const startTime = intervalStartTimeRef.current;
+        intervalStartTimeRef.current = Date.now();
+
         const endActivityDetail = await dispatch(
           activityActions(
             authToken,
-            'end',
+            'interval',
             {
-              ...payload,
-              projectTaskActivityDetailId: currentActivityDetailId,
+              ownerId,
+              projectTaskActivityId: currentProjectActivityId,
+              appWebsites: updatedStats?.appWebsites || [],
+              timezone: getSystemTimezone(),
               ...activityDifference,
+              startTime: new Date(startTime).toISOString(),
+              endTime: new Date().toISOString(),
             },
             true
           )
@@ -515,9 +473,6 @@ const useTaskLogic = (
           return;
         }
       }
-
-      const currentProjectActivityId =
-        projectTaskActivityId || localStorage.getItem('projectTaskActivityId');
 
       const endMainActivity = await dispatch(
         activityActions(authToken, 'end', {
@@ -609,7 +564,7 @@ const useTaskLogic = (
             };
 
             try {
-              await startStopActivityDetailHandler(startUserData);
+              await activityDataHandler(startUserData);
             } catch (error) {
               console.error('Error in start activity handler:', error);
             }
