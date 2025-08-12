@@ -5,7 +5,6 @@ const TaskForm = ({
   setProjectTaskId,
   description,
   setDescription,
-  errors,
   handleKeyDown,
   projects,
   tasks,
@@ -33,9 +32,6 @@ const TaskForm = ({
               </option>
             ))}
           </select>
-          {errors.projectId && (
-            <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
-          )}
         </div>
         <div>
           <label
@@ -58,9 +54,6 @@ const TaskForm = ({
               </option>
             ))}
           </select>
-          {errors.projectTaskId && (
-            <p className="mt-1 text-sm text-red-600">{errors.projectTaskId}</p>
-          )}
         </div>
       </div>
       <div>
@@ -76,14 +69,10 @@ const TaskForm = ({
           onChange={(e) => setDescription(e.target.value)}
           onKeyDown={handleKeyDown}
           maxLength={100}
-          disabled={!projectTaskId}
           rows={3}
           className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="What task(s) are you doing? (max 100 characters)"
         ></textarea>
-        {errors.description && (
-          <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-        )}
       </div>
     </div>
   );

@@ -111,7 +111,6 @@ function ActivityLogger({
 
   const updateTrackedHourDetails = useCallback(
     (newSeconds, idleTimeInSeconds) => {
-      console.log('check tracked', newSeconds, idleTimeInSeconds);
       setUpdatedDetailsFromActivity({ newSeconds, idleTimeInSeconds });
     },
     [trackedHourDetails]
@@ -171,13 +170,12 @@ function ActivityLogger({
         dispatch(
           fetchTrackingTimeDetails(authToken, {
             ownerId,
-            timezone: getSystemTimezone(),
           })
         ).then((res) => {
-          const newSeconds =
-            res?.data?.data?.length === 0 ? 0 : res?.data?.data?.[0]?.totalTime;
-          const idleTime =
-            res?.data?.data?.length === 0 ? 0 : res?.data?.data?.[0]?.idleTime;
+          const newSeconds = res?.data?.data?.uniqueMinuteCount
+            ? +res?.data?.data?.uniqueMinuteCount * 60
+            : 0;
+
           setTrackedHourDetails((prev) => {
             if (prev.trackedHourInSeconds !== newSeconds) {
               setAnimate(true);
@@ -187,13 +185,13 @@ function ActivityLogger({
             localStorage.setItem(
               'offlineTrackedHours',
               JSON.stringify({
-                idleTime,
+                idleTime: 0,
                 trackedHourInSeconds: newSeconds,
               })
             );
 
             return {
-              idleTime,
+              idleTime: 0,
               trackedHourInSeconds: newSeconds,
             };
           });
@@ -236,17 +234,12 @@ function ActivityLogger({
           dispatch(
             fetchTrackingTimeDetails(authToken, {
               ownerId,
-              timezone: getSystemTimezone(),
             })
           ).then((res) => {
-            const newSeconds =
-              res?.data?.data?.length === 0
-                ? 0
-                : res?.data?.data?.[0]?.totalTime;
-            const idleTime =
-              res?.data?.data?.length === 0
-                ? 0
-                : res?.data?.data?.[0]?.idleTime;
+            const newSeconds = res?.data?.data?.uniqueMinuteCount
+              ? +res?.data?.data?.uniqueMinuteCount * 60
+              : 0;
+
             setTrackedHourDetails((prev) => {
               if (prev.trackedHourInSeconds !== newSeconds) {
                 setAnimate(true);
@@ -254,7 +247,7 @@ function ActivityLogger({
               }
 
               return {
-                idleTime,
+                idleTime: 0,
                 trackedHourInSeconds: newSeconds,
               };
             });

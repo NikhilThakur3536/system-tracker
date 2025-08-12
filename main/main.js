@@ -103,7 +103,8 @@ db.prepare(
     keyPressed TEXT,
     appWebsiteDetails TEXT,
     intervalStartTime TEXT,
-    intervalEndTime TEXT
+    intervalEndTime TEXT,
+    timezone TEXT
   )
 `
 ).run();
@@ -144,7 +145,6 @@ async function syncOfflineData() {
     const projectTaskActivityDetails = filteredProjectTaskActivityDetails.map(
       (row) => ({
         projectTaskActivityId: row.projectTaskActivityId,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         mouseClick: row.mouseClick ?? 0,
         keystroke: row.keystroke ?? 0,
         keyPressed: row.keyPressed ?? '',
@@ -155,6 +155,7 @@ async function syncOfflineData() {
           : [],
         startTime: row.intervalStartTime ?? '',
         endTime: row.intervalEndTime ?? '',
+        timezone: row.timezone || 'unknown',
       })
     );
 
@@ -166,7 +167,7 @@ async function syncOfflineData() {
 
     if (projectTaskActivityDetails && projectTaskActivityDetails?.length > 0) {
       try {
-        await axios.post(
+        const res = await axios.post(
           `${API_BASE_URL}/employee/v2/project/project/task/activity/detail/add/bulk`,
           payload,
           {
@@ -372,8 +373,9 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
         keyPressed,
         appWebsiteDetails,
         intervalStartTime,
-        intervalEndTime
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        intervalEndTime,
+        timezone
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     ).run(
       data.ownerId,
@@ -383,9 +385,10 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
       data.scroll,
       data.keystroke,
       data.keyPressed,
+      JSON.stringify(data.appWebsiteDetails),
       data.startTime,
       data.endTime,
-      JSON.stringify(data.appWebsiteDetails)
+      data.timezone
     );
   }
 });

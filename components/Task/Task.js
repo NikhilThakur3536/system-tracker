@@ -44,7 +44,6 @@ const Task = ({
   const {
     projectId,
     setProjectId,
-    errors,
     handleFormSubmit,
     handleKeyDown,
     stopLoggingHandler,
@@ -137,7 +136,6 @@ const Task = ({
               setProjectTaskId={setProjectTaskId}
               description={description}
               setDescription={setDescription}
-              errors={errors}
               handleKeyDown={handleKeyDown}
               projects={projects}
               tasks={tasks}

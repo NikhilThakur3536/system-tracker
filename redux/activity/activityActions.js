@@ -118,15 +118,8 @@ export function fetchTrackingTimeDetails(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/project/tracked-hours`,
-        {
-          ...payload,
-          entityType: 'MEMBER',
-          durationType: 'DAY',
-          data: 'HOURS',
-          startDate: moment().format('YYYY-MM-DD'),
-          endDate: moment().format('YYYY-MM-DD'),
-        },
+        `${API_BASE_URL}/employee/v3/project/tracked-hours/minute-wise`,
+        payload,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,

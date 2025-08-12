@@ -54,11 +54,6 @@ const useTaskLogic = (
 
   const [projectId, setProjectId] = useState('');
 
-  const [errors, setErrors] = useState({
-    projectId: '',
-    projectTaskId: '',
-    description: '',
-  });
   const [projectTaskActivityId, setProjectTaskActivityId] = useState(null);
   const [projectTaskActivityDetailId, setProjectTaskActivityDetailId] =
     useState(null);
@@ -260,6 +255,7 @@ const useTaskLogic = (
             projectTaskActivityId ||
             localStorage.getItem('projectTaskActivityId'),
           appWebsites: updatedStats?.appWebsites || [],
+          timezone: getSystemTimezone(),
           ...activityDifference,
           startTime: new Date(intervalStartTimeRef.current).toISOString(),
           endTime: new Date().toISOString(),
@@ -348,61 +344,53 @@ const useTaskLogic = (
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    const newErrors = {
-      projectId: projectId ? '' : 'Project is required',
-      projectTaskId: projectTaskId ? '' : 'Task is required',
-      description: description ? '' : 'Task Description is required',
+
+    setIsLoading(true);
+
+    const geoLocation = await window.electronAPI.getGeoLocation();
+    const speed = initialSpeed || (await fetchSpeed());
+
+    const payload = {
+      ownerId,
+      ...(projectTaskId ? { projectTaskId } : {}),
+      ...(description ? { description } : {}),
+      timezone: getSystemTimezone(),
+      ...geoLocation,
+      speed,
+      trackerVersion: TRACKER_VERSION,
+      ipAddress: await getIpAddress(),
     };
-    setErrors(newErrors);
 
-    if (Object.values(newErrors).every((error) => !error)) {
-      setIsLoading(true);
+    const activeSessionObj = {
+      projectName: projects.find((p) => p?.id === projectId)?.name,
+      projectTaskName: tasks?.find((t) => t?.id === projectTaskId)?.name,
+      description,
+      workspaceName: workspaces?.find((w) => w.ownerId === ownerId)
+        ?.workspaceName,
+    };
 
-      const geoLocation = await window.electronAPI.getGeoLocation();
-      const speed = initialSpeed || (await fetchSpeed());
+    setActiveSession(activeSessionObj);
+    localStorage.setItem('activeSession', JSON.stringify(activeSessionObj));
+    localStorage.setItem('projectTaskId', projectTaskId);
 
-      const payload = {
-        ownerId,
-        projectTaskId,
-        description,
-        timezone: getSystemTimezone(),
-        ...geoLocation,
-        speed,
-        trackerVersion: TRACKER_VERSION,
-        ipAddress: await getIpAddress(),
-      };
+    dispatch(activityActions(authToken, 'start', payload))
+      .then(async (status) => {
+        if (status?.success) {
+          setProjectTaskActivityId(status?.id);
+          localStorage.setItem('projectTaskActivityId', status?.id);
 
-      const activeSessionObj = {
-        projectName: projects.find((p) => p?.id === projectId)?.name,
-        projectTaskName: tasks?.find((t) => t?.id === projectTaskId)?.name,
-        description,
-        workspaceName: workspaces?.find((w) => w.ownerId === ownerId)
-          ?.workspaceName,
-      };
+          const userData = {
+            ownerId,
+          };
+          window.electronAPI.sendActivityData(userData);
+          startLogging();
 
-      setActiveSession(activeSessionObj);
-      localStorage.setItem('activeSession', JSON.stringify(activeSessionObj));
-      localStorage.setItem('projectTaskId', projectTaskId);
-
-      dispatch(activityActions(authToken, 'start', payload))
-        .then(async (status) => {
-          if (status?.success) {
-            setProjectTaskActivityId(status?.id);
-            localStorage.setItem('projectTaskActivityId', status?.id);
-
-            const userData = {
-              ownerId,
-            };
-            window.electronAPI.sendActivityData(userData);
-            startLogging();
-
-            projectDetailActions();
-          } else {
-            console.log(status?.error);
-          }
-        })
-        .finally(() => setIsLoading(false));
-    }
+          projectDetailActions();
+        } else {
+          console.log(status?.error);
+        }
+      })
+      .finally(() => setIsLoading(false));
   };
 
   const stopLoggingHandler = async () => {
@@ -414,14 +402,21 @@ const useTaskLogic = (
     }
 
     let ipAddress = await getIpAddress();
-    console.log(ipAddress);
 
     const lastStats = lastStatsRef.current;
 
+    const getPositiveDifference = (current = 0, previous = 0) => {
+      const diff = +current - +previous;
+      return diff > 0 ? diff : 0;
+    };
+
     const activityDifference = {
-      mouseClick: +stats?.clickCount - +lastStats.clickCount,
-      scroll: +stats?.scrollCount - +lastStats.scrollCount,
-      keystroke: +stats?.keyCount - +lastStats.keyCount,
+      mouseClick: getPositiveDifference(
+        stats?.clickCount,
+        lastStats.clickCount
+      ),
+      scroll: getPositiveDifference(stats?.scrollCount, lastStats.scrollCount),
+      keystroke: getPositiveDifference(stats?.keyCount, lastStats.keyCount),
       keyPressed: stats?.accumulatedText?.slice(
         lastStats?.accumulatedText?.length
       ),
@@ -440,6 +435,7 @@ const useTaskLogic = (
 
       if (currentActivityDetailId) {
         const startTime = intervalStartTimeRef.current;
+
         intervalStartTimeRef.current = Date.now();
 
         const endActivityDetail = await dispatch(
@@ -449,7 +445,7 @@ const useTaskLogic = (
             {
               ownerId,
               projectTaskActivityId: currentProjectActivityId,
-              appWebsites: updatedStats?.appWebsites || [],
+              appWebsites: stats?.appWebsites || [],
               timezone: getSystemTimezone(),
               ...activityDifference,
               startTime: new Date(startTime).toISOString(),
@@ -508,12 +504,14 @@ const useTaskLogic = (
           message: endMainActivity?.error?.data?.error,
           code: endMainActivity?.error?.status,
         });
+        return;
       }
     } catch (error) {
       setApiError({
         message: error?.error?.data?.error,
         code: error?.error?.status,
       });
+      return;
     } finally {
       setIsLoading(false);
     }
@@ -530,7 +528,6 @@ const useTaskLogic = (
     if (typeof window !== 'undefined' && authToken !== null) {
       const storedIsLogging = JSON.parse(localStorage.getItem('isLogging'));
       const storedOwnerId = localStorage.getItem('ownerId');
-      const storedProjectTaskId = localStorage.getItem('projectTaskId');
       const storedProjectTaskActivityId = localStorage.getItem(
         'projectTaskActivityId'
       );
@@ -659,7 +656,6 @@ const useTaskLogic = (
     setProjectTaskId,
     description,
     setDescription,
-    errors,
     handleFormSubmit,
     handleKeyDown,
     stopLoggingHandler,
