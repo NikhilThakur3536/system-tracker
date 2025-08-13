@@ -48,7 +48,7 @@ const useTaskLogic = (
     scrollCount: 0,
     keyCount: 0,
     accumulatedText: [],
-    appWebsiteDetails: [],
+    // appWebsiteDetails: [],
   };
   const lastStatsRef = useRef(initialLastStats);
 
@@ -195,11 +195,11 @@ const useTaskLogic = (
         keyPressed: updatedStats?.accumulatedText?.slice(
           lastStats?.accumulatedText?.length
         ),
-        appWebsiteDetails: updatedStats?.appWebsiteDetails?.slice(
-          0,
-          updatedStats?.appWebsiteDetails?.length -
-            lastStats?.appWebsiteDetails?.length
-        ),
+        // appWebsiteDetails: updatedStats?.appWebsiteDetails?.slice(
+        //   0,
+        //   updatedStats?.appWebsiteDetails?.length -
+        //     lastStats?.appWebsiteDetails?.length
+        // ),
       };
 
       lastStatsRef.current = {
@@ -207,7 +207,7 @@ const useTaskLogic = (
         scrollCount: +updatedStats?.scrollCount,
         keyCount: +updatedStats?.keyCount,
         accumulatedText: updatedStats?.accumulatedText,
-        appWebsiteDetails: updatedStats?.appWebsiteDetails,
+        // appWebsiteDetails: updatedStats?.appWebsiteDetails,
       };
 
       if (isOnline) {
@@ -420,10 +420,10 @@ const useTaskLogic = (
       keyPressed: stats?.accumulatedText?.slice(
         lastStats?.accumulatedText?.length
       ),
-      appWebsiteDetails: stats?.appWebsiteDetails?.slice(
-        0,
-        stats?.appWebsiteDetails?.length - lastStats?.appWebsiteDetails?.length
-      ),
+      // appWebsiteDetails: stats?.appWebsiteDetails?.slice(
+      //   0,
+      //   stats?.appWebsiteDetails?.length - lastStats?.appWebsiteDetails?.length
+      // ),
     };
 
     try {
@@ -552,7 +552,7 @@ const useTaskLogic = (
               scrollCount: +updatedStats?.scrollCount,
               keyCount: +updatedStats?.keyCount,
               accumulatedText: updatedStats?.accumulatedText,
-              appWebsiteDetails: updatedStats?.appWebsiteDetails,
+              // appWebsiteDetails: updatedStats?.appWebsiteDetails,
             };
 
             const startUserData = {

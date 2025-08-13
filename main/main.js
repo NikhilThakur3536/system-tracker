@@ -101,13 +101,14 @@ db.prepare(
     scroll INTEGER,
     keystroke INTEGER,
     keyPressed TEXT,
-    appWebsiteDetails TEXT,
     intervalStartTime TEXT,
     intervalEndTime TEXT,
     timezone TEXT
   )
 `
 ).run();
+
+/* appWebsiteDetails TEXT, - for future if needed*/
 
 db.prepare(
   `
@@ -150,14 +151,15 @@ async function syncOfflineData() {
         keyPressed: row.keyPressed ?? '',
         scroll: row.scroll ?? 0,
         appWebsites: row.appWebsites ? JSON.parse(row.appWebsites) : [],
-        appWebsiteDetails: row.appWebsiteDetails
-          ? JSON.parse(row.appWebsiteDetails)
-          : [],
         startTime: row.intervalStartTime ?? '',
         endTime: row.intervalEndTime ?? '',
         timezone: row.timezone || 'unknown',
       })
     );
+
+    // appWebsiteDetails: row.appWebsiteDetails
+    //   ? JSON.parse(row.appWebsiteDetails)
+    //   : [], - for future if needed
 
     const payload = {
       ownerId:
@@ -371,11 +373,10 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
         scroll,
         keystroke,
         keyPressed,
-        appWebsiteDetails,
         intervalStartTime,
         intervalEndTime,
         timezone
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     ).run(
       data.ownerId,
@@ -385,13 +386,14 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
       data.scroll,
       data.keystroke,
       data.keyPressed,
-      JSON.stringify(data.appWebsiteDetails),
       data.startTime,
       data.endTime,
       data.timezone
     );
   }
 });
+
+/* appWebsiteDetails, for future if needed */
 
 function checkInternetConnection() {
   return new Promise((resolve) => {
