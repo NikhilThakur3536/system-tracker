@@ -158,41 +158,26 @@ function ActivityTracker({ isOnline, isSleepMode }) {
           };
 
           if (isOnline) {
-            dispatch(getActivityEndStatus(storedAuthToken, payload)).then(
-              async (data) => {
-                const shouldNotRemoveTimer =
-                  await window.electronAPI.shouldNotRemoveTimer?.();
+            // dispatch(getActivityEndStatus(storedAuthToken, payload)).then(
+            //   async (data) => {
+            //     const shouldNotRemoveTimer =
+            //       await window.electronAPI.shouldNotRemoveTimer?.();
 
-                if (
-                  data?.data?.endTime ||
-                  shouldNotRemoveTimer ||
-                  !localStorage.getItem('projectTaskActivityDetailId')
-                ) {
-                  window.electronAPI.startLogging();
-                  setStats(initialStats);
-                  setEndedActivityRestart(true);
-                } else {
-                  setIsLoading(true);
-                  await restartOfflineLogging();
-                  setIsLoading(false);
+            //     if (data?.data?.endTime || shouldNotRemoveTimer) {
+            //       window.electronAPI.startLogging();
+            //       setStats(initialStats);
+            //       setEndedActivityRestart(true);
+            //     } else {
+            //       setIsLoading(true);
+            //       await restartOfflineLogging();
+            //       setIsLoading(false);
+            //     }
+            //   }
+            // );
 
-                  // dispatch(
-                  //   removeActivityDetailTimeout(storedAuthToken, payload)
-                  // )
-                  //   .then(async () => {
-                  //     await restartOfflineLogging();
-                  //     setIsLoading(false);
-                  //   })
-                  //   .catch((error) => {
-                  //     console.error(
-                  //       'Error removing activity detail timeout:',
-                  //       error
-                  //     );
-                  //     setIsLoading(false);
-                  //   });
-                }
-              }
-            );
+            window.electronAPI.startLogging();
+            setStats(initialStats);
+            setEndedActivityRestart(true);
           } else {
             restartOfflineLogging();
           }

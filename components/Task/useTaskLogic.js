@@ -427,47 +427,42 @@ const useTaskLogic = (
     };
 
     try {
-      const currentActivityDetailId =
-        localStorage.getItem('projectTaskActivityDetailId') ||
-        projectTaskActivityDetailIdRef.current;
       const currentProjectActivityId =
         projectTaskActivityId || localStorage.getItem('projectTaskActivityId');
 
-      if (currentActivityDetailId) {
-        const startTime = intervalStartTimeRef.current;
+      const startTime = intervalStartTimeRef.current;
 
-        intervalStartTimeRef.current = Date.now();
+      intervalStartTimeRef.current = Date.now();
 
-        const endActivityDetail = await dispatch(
-          activityActions(
-            authToken,
-            'interval',
-            {
-              ownerId,
-              projectTaskActivityId: currentProjectActivityId,
-              appWebsites: stats?.appWebsites || [],
-              timezone: getSystemTimezone(),
-              ...activityDifference,
-              startTime: new Date(startTime).toISOString(),
-              endTime: new Date().toISOString(),
-            },
-            true
-          )
-        );
+      const endActivityDetail = await dispatch(
+        activityActions(
+          authToken,
+          'interval',
+          {
+            ownerId,
+            projectTaskActivityId: currentProjectActivityId,
+            appWebsites: stats?.appWebsites || [],
+            timezone: getSystemTimezone(),
+            ...activityDifference,
+            startTime: new Date(startTime).toISOString(),
+            endTime: new Date().toISOString(),
+          },
+          true
+        )
+      );
 
-        if (endActivityDetail?.success) {
-          setProjectTaskActivityDetailId(null);
-          localStorage.removeItem('projectTaskActivityDetailId');
-          lastStatsRef.current = initialLastStats;
-          intervalStartTimeRef.current = null;
-        } else {
-          setApiError({
-            message: endActivityDetail?.error?.data?.error,
-            code: endActivityDetail?.error?.status,
-          });
-          setIsLoading(false);
-          return;
-        }
+      if (endActivityDetail?.success) {
+        setProjectTaskActivityDetailId(null);
+        localStorage.removeItem('projectTaskActivityDetailId');
+        lastStatsRef.current = initialLastStats;
+        intervalStartTimeRef.current = null;
+      } else {
+        setApiError({
+          message: endActivityDetail?.error?.data?.error,
+          code: endActivityDetail?.error?.status,
+        });
+        setIsLoading(false);
+        return;
       }
 
       const endMainActivity = await dispatch(
