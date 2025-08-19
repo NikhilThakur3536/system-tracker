@@ -173,7 +173,7 @@ function ActivityLogger({
           })
         ).then((res) => {
           const newSeconds = res?.data?.data?.uniqueMinuteCount
-            ? +res?.data?.data?.uniqueMinuteCount * 60
+            ? +res?.data?.data?.uniqueMinuteCount
             : 0;
 
           setTrackedHourDetails((prev) => {
@@ -237,7 +237,7 @@ function ActivityLogger({
             })
           ).then((res) => {
             const newSeconds = res?.data?.data?.uniqueMinuteCount
-              ? +res?.data?.data?.uniqueMinuteCount * 60
+              ? +res?.data?.data?.uniqueMinuteCount
               : 0;
 
             setTrackedHourDetails((prev) => {

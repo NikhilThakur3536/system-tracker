@@ -123,7 +123,7 @@ const useTaskLogic = (
 
   // ----- Offline tracked time start -------
 
-  const idleTimeIntervalRef = useRef(10);
+  const idleTimeIntervalRef = useRef(5);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window?.electronAPI) {
@@ -269,17 +269,17 @@ const useTaskLogic = (
         if (hasActivity) {
           inactivityCountRef.current = 0;
           trackedHourDetailsRef.current.trackedHourInSeconds += durationInSec;
+          window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
         } else {
           inactivityCountRef.current += 1;
 
           if (inactivityCountRef.current <= idleTimeIntervalRef.current) {
             trackedHourDetailsRef.current.trackedHourInSeconds += durationInSec;
+            window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
           } else {
             trackedHourDetailsRef.current.idleTime += durationInSec;
           }
         }
-
-        window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
 
         updateTrackedHourDetails(
           trackedHourDetailsRef.current.trackedHourInSeconds,
