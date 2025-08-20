@@ -210,7 +210,8 @@ function ActivityTracker({ isOnline, isSleepMode }) {
       .then((res) => res.json())
       .then((data) => {
         setDomainId(data?.data?.id);
-      });
+      })
+      .catch(() => setDomainId(''));
   }
 
   useEffect(() => {

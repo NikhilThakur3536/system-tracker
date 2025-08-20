@@ -151,20 +151,23 @@ const useTaskLogic = (
 
   async function serverOfflineTriggerHandler(status) {
     if (String(status?.error?.status)?.startsWith('5')) {
-      const response = await fetch(`${BASE_URL}/test`, {
-        method: 'HEAD',
-        mode: 'cors',
-        cache: 'no-store',
-      });
+      try {
+        const response = await fetch(`${BASE_URL}/test`, {
+          method: 'HEAD',
+          mode: 'cors',
+          cache: 'no-store',
+        }).catch(() => onManualOfflineTrigger?.());
 
-      if (!response.ok) {
-        if (
-          status?.error?.data?.error?.toLowerCase() !== 'socket hang up' &&
-          !status?.error?.includes('hang up')
-        ) {
-          onManualOfflineTrigger?.();
-          return;
+        if (!response.ok) {
+          if (
+            status?.error?.data?.error?.toLowerCase() !== 'socket hang up' &&
+            !String(status?.error).includes('hang up')
+          ) {
+            onManualOfflineTrigger?.();
+          }
         }
+      } catch (err) {
+        onManualOfflineTrigger?.();
       }
     }
   }

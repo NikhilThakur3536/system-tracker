@@ -25,7 +25,7 @@ export function activityActions(authToken, activityType, payload, isDetail) {
           : {}),
         ...(isDetail || activityType === 'end'
           ? {
-              totalTime: response?.data?.data?.totalTime,
+              totalTime: 60,
               idleTime: response?.data?.data?.idleTime,
             }
           : {}),
@@ -33,7 +33,10 @@ export function activityActions(authToken, activityType, payload, isDetail) {
     } catch (error) {
       return {
         success: false,
-        error: error?.response,
+        error: error?.response || {
+          status: 500,
+          data: { error: 'Internal Server Error' },
+        },
       };
     }
   };

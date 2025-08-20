@@ -1037,6 +1037,7 @@ function stopScreenshotCapture() {
 
 // IPC handlers
 ipcMain.handle('start-logging', async () => {
+  await store.set('stats', initialStats);
   isLogging = true;
   clickCount = 0;
   scrollCount = 0;
