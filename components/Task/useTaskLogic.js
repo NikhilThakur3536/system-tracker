@@ -30,7 +30,8 @@ const useTaskLogic = (
   isLogging,
   initialSpeed,
   onManualOfflineTrigger,
-  isSleepMode
+  isSleepMode,
+  setClearStats
 ) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -51,6 +52,7 @@ const useTaskLogic = (
     // appWebsiteDetails: [],
   };
   const lastStatsRef = useRef(initialLastStats);
+  const [hasInitialisedLastStats, setHasInitialisedLastStats] = useState(false);
 
   const [projectId, setProjectId] = useState('');
 
@@ -595,6 +597,7 @@ const useTaskLogic = (
         if (storedIsLogging) {
           if (storedOwnerId && storedProjectTaskId) {
             const fetchData = async () => {
+              setClearStats(true);
               setIsLoading(true);
 
               try {
@@ -621,6 +624,7 @@ const useTaskLogic = (
                         ownerId,
                       };
                       window.electronAPI.sendActivityData(userData);
+                      setClearStats(true);
                       startLogging();
                       projectDetailActions();
                     } else {
@@ -643,9 +647,35 @@ const useTaskLogic = (
       const storedIsLogging = JSON.parse(localStorage.getItem('isLogging'));
       if (storedIsLogging) {
         intervalStartTimeRef.current = Date.now();
+        if (!isOnline) {
+          setHasInitialisedLastStats(true);
+        }
       }
     }
   }, [endedActivityRestart, authToken, isOnline]);
+
+  useEffect(() => {
+    if (
+      !endedActivityRestart &&
+      !isOnline &&
+      stats &&
+      authToken !== null &&
+      typeof stats === 'object' &&
+      hasInitialisedLastStats
+    ) {
+      const storedIsLogging = JSON.parse(localStorage.getItem('isLogging'));
+      if (storedIsLogging) {
+        lastStatsRef.current = {
+          clickCount: +stats?.clickCount,
+          scrollCount: +stats?.scrollCount,
+          keyCount: +stats?.keyCount,
+          accumulatedText: stats?.accumulatedText,
+        };
+        console.log('lastStatsRef.current', lastStatsRef.current);
+        setHasInitialisedLastStats(false);
+      }
+    }
+  }, [endedActivityRestart, authToken, isOnline, stats]);
 
   return {
     projectId,

@@ -114,6 +114,7 @@ function ActivityTracker({ isOnline, isSleepMode }) {
 
   useEffect(() => {
     if (clearStats && typeof window !== 'undefined' && window.electronAPI) {
+      setStats(initialStats);
       window.electronAPI.clearStoreStats();
       setClearStats(false);
     }
@@ -142,11 +143,6 @@ function ActivityTracker({ isOnline, isSleepMode }) {
         );
 
         if (storedOwnerId && storedProjectTaskActivityId) {
-          const payload = {
-            ownerId: storedOwnerId,
-            projectTaskActivityId: storedProjectTaskActivityId,
-          };
-
           const restartOfflineLogging = async () => {
             const response = await window.electronAPI.sendActivityData({
               ownerId: localStorage.getItem('ownerId'),
@@ -176,8 +172,8 @@ function ActivityTracker({ isOnline, isSleepMode }) {
             // );
 
             window.electronAPI.startLogging();
-            setStats(initialStats);
             setEndedActivityRestart(true);
+            setStats(initialStats);
           } else {
             restartOfflineLogging();
           }
@@ -360,6 +356,7 @@ function ActivityTracker({ isOnline, isSleepMode }) {
             setEndedActivityRestart={setEndedActivityRestart}
             setIsLoading={setIsLoading}
             isSleepMode={isSleepMode}
+            setClearStats={setClearStats}
           />
         </Loader>
       )}
