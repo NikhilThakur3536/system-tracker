@@ -40,9 +40,12 @@ app.isQuiting = false;
 // Renderer Data
 let isLogging = false;
 let screenshotInterval;
+let appWebsiteDetailsInterval;
 
 const DEFAULT_SCREENSHOT_TYPE = 'SCREENSHOT';
 const DEFAULT_CAPTURE_INTERVAL = 10;
+const DEFAULT_APP_WEBSITE_DETAILS_INTERVAL = 5;
+
 const DEFAULT_ACTIVITY_INTERVAL = 1;
 const DEFAULT_ACTIVITY_SPEED_LOCATION_INTERVAL = 1800;
 const DEFAULT_IDLE_TIME_INTERVAL = 10;
@@ -50,6 +53,7 @@ const DEFAULT_IDLE_TIME_INTERVAL = 10;
 let screenshotType = DEFAULT_SCREENSHOT_TYPE;
 
 let captureIntervalMinutes;
+let appWebsiteDetailsMinutes;
 let activityIntervalMinutes;
 let activitySpeedLocationInterval;
 let idleTimeInterval;
@@ -70,6 +74,7 @@ let authToken = null;
 let lastActiveWindow = null;
 let appWebsites = [];
 let appWebsiteDetails = [];
+let lastAppWebsiteDetails = [];
 
 // Stats
 
@@ -108,8 +113,6 @@ db.prepare(
 `
 ).run();
 
-/* appWebsiteDetails TEXT, - for future if needed*/
-
 db.prepare(
   `
   CREATE TABLE IF NOT EXISTS offlineScreenshots (
@@ -119,6 +122,18 @@ db.prepare(
     screenshotTakenTime TEXT,
     fileName TEXT,
     screenshotBlob BLOB
+  )
+`
+).run();
+
+db.prepare(
+  `
+  CREATE TABLE IF NOT EXISTS offlineAppWebsiteDetails (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    authToken TEXT,
+    ownerId TEXT,
+    fileName NUMBER,
+    appWebsiteDetailsJSON TEXT
   )
 `
 ).run();
@@ -157,10 +172,6 @@ async function syncOfflineData() {
       })
     );
 
-    // appWebsiteDetails: row.appWebsiteDetails
-    //   ? JSON.parse(row.appWebsiteDetails)
-    //   : [], - for future if needed
-
     const payload = {
       ownerId:
         ownerId || (await store.get('ownerId')) || statsRows?.[0]?.ownerId,
@@ -169,7 +180,7 @@ async function syncOfflineData() {
 
     if (projectTaskActivityDetails && projectTaskActivityDetails?.length > 0) {
       try {
-        const res = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/employee/v2/project/project/task/activity/detail/add/bulk`,
           payload,
           {
@@ -272,6 +283,56 @@ async function syncOfflineData() {
       }
     } catch (err) {
       console.error('Failed to sync screenshot rows:', err);
+    }
+  }
+
+  // Sync offline app website details
+  const appWebsiteDetailsRows = db
+    .prepare('SELECT * FROM offlineAppWebsiteDetails')
+    .all();
+
+  if (appWebsiteDetailsRows && appWebsiteDetailsRows?.length > 0) {
+    try {
+      // 1. Prepare FormData with all files
+      const formData = new FormData();
+      appWebsiteDetailsRows.forEach((row) => {
+        const file = new File([row.appWebsiteDetailsJSON], +row.fileName, {
+          type: 'text/plain',
+        });
+        formData.append('files', file);
+      });
+      formData.append('ownerId', appWebsiteDetailsRows[0].ownerId);
+
+      // 2. Upload all files in one request
+      await axios.post(
+        `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add/bulk`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      // 3. Delete synced app website details from DB
+      appWebsiteDetailsRows.forEach((row) => {
+        db.prepare('DELETE FROM offlineAppWebsiteDetails WHERE id = ?').run(
+          row.id
+        );
+      });
+
+      // 4. Reset sequence if table is empty
+      const appWebsiteDetailsCount = db
+        .prepare('SELECT COUNT(*) as count FROM offlineAppWebsiteDetails')
+        .get().count;
+      if (appWebsiteDetailsCount === 0) {
+        db.prepare(
+          "DELETE FROM sqlite_sequence WHERE name='offlineAppWebsiteDetails'"
+        ).run();
+      }
+    } catch (err) {
+      console.error('Failed to sync app website details rows:', err);
     }
   }
 }
@@ -393,8 +454,6 @@ ipcMain.handle('offline-activity-data', async (event, data) => {
   }
 });
 
-/* appWebsiteDetails, for future if needed */
-
 function checkInternetConnection() {
   return new Promise((resolve) => {
     dns.lookup('google.com', (err) => {
@@ -424,6 +483,9 @@ async function fetchCaptureInterval() {
 
     // 4) Idle time interval
     idleTimeInterval = +intervals.idleTimeInterval;
+
+    // 5) App Website Details Interval
+    appWebsiteDetailsMinutes = +intervals.appWebsiteDetailsMinutes;
 
     if (mainWindow) {
       mainWindow.webContents.send(
@@ -471,6 +533,10 @@ async function fetchCaptureInterval() {
       // 4) Idle time interval
       idleTimeInterval = response?.data?.data?.idleTimeInSeconds / 60;
 
+      // 5) App Website Details interval
+      appWebsiteDetailsMinutes =
+        response?.data?.data?.appWebsiteDetailsIntervalInSeconds / 60;
+
       if (mainWindow) {
         mainWindow.webContents.send(
           'capture-interval',
@@ -494,6 +560,8 @@ async function fetchCaptureInterval() {
       store.set('intervals', {
         captureIntervalMinutes:
           captureIntervalMinutes?.toFixed(1) || DEFAULT_CAPTURE_INTERVAL,
+        appWebsiteDetailsMinutes:
+          appWebsiteDetailsMinutes || DEFAULT_APP_WEBSITE_DETAILS_INTERVAL,
         activityIntervalMinutes:
           activityIntervalMinutes || DEFAULT_ACTIVITY_INTERVAL,
         activitySpeedLocationInterval:
@@ -720,6 +788,11 @@ if (!gotTheLock) {
       screenshotInterval = null;
     }
 
+    if (appWebsiteDetailsInterval) {
+      clearInterval(appWebsiteDetailsInterval);
+      appWebsiteDetailsInterval = null;
+    }
+
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -729,6 +802,10 @@ if (!gotTheLock) {
     if (screenshotInterval) {
       clearInterval(screenshotInterval);
       screenshotInterval = null;
+    }
+    if (appWebsiteDetailsInterval) {
+      clearInterval(appWebsiteDetailsInterval);
+      appWebsiteDetailsInterval = null;
     }
   });
 
@@ -881,6 +958,8 @@ async function getScrollTracker() {
 }
 
 getScrollTracker();
+
+// ------- Screenshot Start -------
 
 // Function to capture and save screenshot
 ipcMain.on('set-screenshot-type', (event, data) => {
@@ -1035,6 +1114,91 @@ function stopScreenshotCapture() {
   clearInterval(screenshotInterval);
 }
 
+// ------- Screenshot End -------
+
+// ------- App Website Details Start -------
+
+async function uploadAppWebsiteDetails() {
+  try {
+    const formData = new FormData();
+
+    authToken = authToken || (await store.get('authToken'));
+    ownerId = ownerId || (await store.get('ownerId'));
+    if (!ownerId || !authToken) {
+      throw new Error('ownerId or authToken not set');
+    }
+
+    formData.append('ownerId', ownerId);
+    const appWebsiteDetailsDifference = appWebsiteDetails?.slice(
+      0,
+      appWebsiteDetails?.length - lastAppWebsiteDetails?.length
+    );
+
+    const jsonString = JSON.stringify(appWebsiteDetailsDifference, null, 2);
+    const fileName = +new Date();
+
+    lastAppWebsiteDetails = JSON.parse(JSON.stringify(appWebsiteDetails));
+
+    if (isOffline) {
+      try {
+        db.prepare(
+          `
+          INSERT INTO offlineAppWebsiteDetails (
+            authToken,
+            ownerId,
+            fileName,
+            appWebsiteDetailsJSON
+          ) VALUES (?, ?, ?, ?)
+        `
+        ).run(authToken, ownerId, fileName, jsonString);
+      } catch (err) {
+        console.error('Failed to save screenshot offline:', err);
+      }
+    } else {
+      const file = new File([jsonString], fileName, {
+        type: 'text/plain',
+      });
+
+      formData.append('files', file);
+
+      await axios.post(
+        `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    }
+  } catch (error) {
+    console.error('Error uploading app website details:', error);
+  }
+}
+
+// Function to start app website details interval
+async function startAppWebsiteDetailsInterval() {
+  if (appWebsiteDetailsInterval) {
+    stopAppWebsiteDetailsInterval();
+  }
+
+  appWebsiteDetailsInterval = setInterval(
+    uploadAppWebsiteDetails(
+      appWebsiteDetailsInterval || DEFAULT_APP_WEBSITE_DETAILS_INTERVAL
+    ) *
+      60 *
+      1000
+  );
+}
+
+// Function to stop app website details interval
+function stopAppWebsiteDetailsInterval() {
+  clearInterval(appWebsiteDetailsInterval);
+}
+
+// ------- App Website Details End -------
+
 // IPC handlers
 ipcMain.handle('start-logging', async () => {
   await store.set('stats', initialStats);
@@ -1047,7 +1211,9 @@ ipcMain.handle('start-logging', async () => {
   lastActiveWindow = null;
   appWebsites = [];
   appWebsiteDetails = [];
+  lastAppWebsiteDetails = [];
   await startScreenshotCapture();
+  await startAppWebsiteDetailsInterval();
 });
 
 ipcMain.handle('restart-logging', async () => {
@@ -1064,7 +1230,11 @@ ipcMain.handle('restart-logging', async () => {
   lastActiveWindow = await getActiveWindowInfo();
   appWebsites = savedStats.appWebsites;
   appWebsiteDetails = savedStats.appWebsiteDetails;
+  lastAppWebsiteDetails = JSON.parse(
+    JSON.stringify(savedStats.appWebsiteDetails || [])
+  );
   await startScreenshotCapture();
+  await startAppWebsiteDetailsInterval();
 });
 
 ipcMain.handle('clear-store-stats', async () => {
@@ -1090,6 +1260,7 @@ ipcMain.handle('get-location', async () => {
 ipcMain.on('stop-logging', () => {
   isLogging = false;
   stopScreenshotCapture();
+  stopAppWebsiteDetailsInterval();
   stats = initialStats;
   store.reset('stats');
 });
@@ -1113,8 +1284,12 @@ async function loadStats() {
     lastActivityTime = Date.now();
     appWebsites = stats.appWebsites;
     appWebsiteDetails = stats.appWebsiteDetails;
+    lastAppWebsiteDetails = JSON.parse(
+      JSON.stringify(stats.appWebsiteDetails || [])
+    );
   } else {
     stats = initialStats;
+    lastAppWebsiteDetails = [];
   }
 }
 

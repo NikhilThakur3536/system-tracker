@@ -671,7 +671,6 @@ const useTaskLogic = (
           keyCount: +stats?.keyCount,
           accumulatedText: stats?.accumulatedText,
         };
-        console.log('lastStatsRef.current', lastStatsRef.current);
         setHasInitialisedLastStats(false);
       }
     }
