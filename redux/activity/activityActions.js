@@ -144,6 +144,33 @@ export function fetchTrackingTimeDetails(authToken, payload) {
   };
 }
 
+export function getInitialStatsForToday(authToken, payload) {
+  return async () => {
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/employee/v3/project/stats/minute-wise`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      return {
+        success: true,
+        data: res?.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error,
+      };
+    }
+  };
+}
+
 export function sendInternetSpeedGeolocation(authToken, payload) {
   return async () => {
     try {

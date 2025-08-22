@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import {
-  Hourglass,
-  X,
-  MousePointer,
-  Move,
-  Activity,
-  Package,
-  Keyboard,
-  Gauge,
-} from 'lucide-react';
+import { Hourglass, X, Activity, Package, Keyboard, Gauge } from 'lucide-react';
 import Task from './Task/Task';
 import PastActivities from './PastActivities';
 import { gettingEmployeeActionsList } from '../redux/employee/employeeActions';
@@ -20,6 +11,7 @@ import { fetchTrackingTimeDetails } from '../redux/activity/activityActions';
 import { getSystemTimezone } from '../utils/helpers';
 import SlidingTimeDisplay from './SlidingTimeDisplay';
 import ManualOffline from './ManualOffline';
+import StatsCards from './StatsCards';
 
 function ActivityLogger({
   onLogout,
@@ -403,39 +395,13 @@ function ActivityLogger({
 
               {/* Stats Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xxl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <MousePointer className="text-blue-600 text-xl sm:text-2xl" />
-                    <p className="text-2xl sm:text-3xl font-bold text-blue-800">
-                      {stats.clickCount}
-                    </p>
-                  </div>
-                  <p className="text-sm text-blue-600 font-medium">
-                    Mouse Clicks
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <Keyboard className="text-green-600 text-xl sm:text-2xl" />
-                    <p className="text-2xl sm:text-3xl font-bold text-green-800">
-                      {stats.keyCount}
-                    </p>
-                  </div>
-                  <p className="text-sm text-green-600 font-medium">
-                    Keystrokes
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-100 to-pink-200 p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <Move className="text-purple-700 text-xl sm:text-2xl" />
-                    <p className="text-2xl sm:text-3xl font-bold text-pink-800">
-                      {stats.scrollCount}
-                    </p>
-                  </div>
-                  <p className="text-sm text-purple-700 font-medium">Scrolls</p>
-                </div>
+                <StatsCards
+                  stats={stats}
+                  authToken={authToken}
+                  ownerId={ownerId}
+                  isOnline={isOnline}
+                  activityInterval={activityInterval}
+                />
 
                 {/* {isOnline ? (
                   <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
