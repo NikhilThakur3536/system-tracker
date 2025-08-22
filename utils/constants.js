@@ -15,4 +15,4 @@ export const UPDATE_CHECKER_TIME = 30 * 60 * 1000;
 export const REFRESH_CALL_TIME = 30 * 60 * 1000;
 export const APP_OFFLINE_SWITCH_INTERVAL = 15 * 60 * 1000;
 
-export const SERVER_ERROR_INTERVAL_RETEST = 1;
+export const SERVER_ERROR_INTERVAL_RETEST = 2;

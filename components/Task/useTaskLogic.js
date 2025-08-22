@@ -4,7 +4,10 @@ import { gettingEmployeeActionsList } from '../../redux/employee/employeeActions
 import { activityActions } from '../../redux/activity/activityActions';
 import { BASE_URL, TRACKER_VERSION } from '../../utils/constants';
 import { getSpeed, getSystemTimezone } from '../../utils/helpers';
-import { DEFAULT_SCREENSHOT_TYPE } from '../../utils/constants';
+import {
+  DEFAULT_SCREENSHOT_TYPE,
+  SERVER_ERROR_INTERVAL_RETEST,
+} from '../../utils/constants';
 import axios from 'axios';
 
 const useTaskLogic = (
@@ -151,6 +154,8 @@ const useTaskLogic = (
 
   // ----- Offline tracked time end -------
 
+  const failureCountRef = useRef(0);
+
   async function serverOfflineTriggerHandler(status) {
     if (String(status?.error?.status)?.startsWith('5')) {
       try {
@@ -240,12 +245,20 @@ const useTaskLogic = (
           )
         ).then(async (status) => {
           if (status?.success) {
+            failureCountRef.current = 0;
+
             updateTrackedHourDetails(status?.totalTime, status?.idleTime);
             setProjectTaskActivityDetailId(status?.id);
             localStorage.setItem('projectTaskActivityDetailId', status?.id);
           } else {
             console.log('End activity error:', status?.error?.data?.error);
-            await serverOfflineTriggerHandler(status);
+
+            failureCountRef.current += 1;
+            console.log(failureCountRef.current);
+            if (failureCountRef.current === SERVER_ERROR_INTERVAL_RETEST) {
+              await serverOfflineTriggerHandler(status);
+              failureCountRef.current = 0;
+            }
           }
         });
       } else {
