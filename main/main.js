@@ -1184,9 +1184,8 @@ async function startAppWebsiteDetailsInterval() {
   }
 
   appWebsiteDetailsInterval = setInterval(
-    uploadAppWebsiteDetails(
-      appWebsiteDetailsInterval || DEFAULT_APP_WEBSITE_DETAILS_INTERVAL
-    ) *
+    uploadAppWebsiteDetails,
+    (appWebsiteDetailsInterval || DEFAULT_APP_WEBSITE_DETAILS_INTERVAL) *
       60 *
       1000
   );
