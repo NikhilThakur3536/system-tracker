@@ -493,6 +493,33 @@ const useTaskLogic = (
       );
 
       if (endMainActivity?.success) {
+        let initialStats = {
+          clickCount: 0,
+          keyCount: 0,
+          scrollCount: 0,
+        };
+        if (
+          typeof window !== undefined &&
+          localStorage.getItem('todaysStatsCountForUser')
+        ) {
+          initialStats = JSON.parse(
+            localStorage.getItem('todaysStatsCountForUser')
+          );
+        }
+
+        const statsCount = {
+          clickCount: initialStats?.clickCount + (stats?.clickCount || 0),
+          keyCount: initialStats?.keyCount + (stats?.keyCount || 0),
+          scrollCount: initialStats?.scrollCount + (stats?.scrollCount || 0),
+        };
+
+        localStorage.setItem(
+          'todaysStatsCountForUser',
+          JSON.stringify(statsCount)
+        );
+
+        localStorage.setItem('statsUpdateNeeded', true);
+
         setProjectId('');
         setProjectTaskId('');
         setProjectTaskActivityId(null);

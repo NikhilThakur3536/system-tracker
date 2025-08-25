@@ -401,6 +401,7 @@ function ActivityLogger({
                   ownerId={ownerId}
                   isOnline={isOnline}
                   activityInterval={activityInterval}
+                  isLogging={isLogging}
                 />
 
                 {/* {isOnline ? (

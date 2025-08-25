@@ -9,6 +9,7 @@ const StatsCards = ({
   ownerId,
   isOnline,
   activityInterval,
+  isLogging,
 }) => {
   const dispatch = useDispatch();
   const initialStatsState = {
@@ -64,6 +65,21 @@ const StatsCards = ({
       }
     }
   }, [authToken, ownerId, isOnline]);
+
+  useEffect(() => {
+    if (!isLogging) {
+      if (
+        typeof window !== undefined &&
+        localStorage.getItem('statsUpdateNeeded') === 'true'
+      ) {
+        const statsCount = localStorage.getItem('todaysStatsCountForUser')
+          ? JSON.parse(localStorage.getItem('todaysStatsCountForUser'))
+          : null;
+        setInitialStats(statsCount || initialStatsState);
+        localStorage.removeItem('statsUpdateNeeded');
+      }
+    }
+  }, [isLogging]);
 
   return (
     <>
