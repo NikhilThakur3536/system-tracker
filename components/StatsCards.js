@@ -24,9 +24,9 @@ const StatsCards = ({
         if (status?.success) {
           const resData = status?.data?.data;
           const statsCount = {
-            clickCount: resData?.mouseClick,
-            keyCount: resData?.keystroke,
-            scrollCount: resData?.scroll,
+            clickCount: resData?.mouseClick || 0,
+            keyCount: resData?.keystroke || 0,
+            scrollCount: resData?.scroll || 0,
           };
           setInitialStats(statsCount);
           localStorage.setItem(
