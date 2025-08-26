@@ -1161,7 +1161,7 @@ async function uploadAppWebsiteDetails() {
 
       formData.append('files', file);
 
-      const response = await axios.post(
+      await axios.post(
         `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add`,
         formData,
         {
