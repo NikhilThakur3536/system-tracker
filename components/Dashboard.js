@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Hourglass, X, Activity, Package, Keyboard, Gauge } from 'lucide-react';
+import {
+  Hourglass,
+  X,
+  Activity,
+  Package,
+  Keyboard,
+  Gauge,
+  RefreshCcw,
+} from 'lucide-react';
 import Task from './Task/Task';
 import PastActivities from './PastActivities';
 import { gettingEmployeeActionsList } from '../redux/employee/employeeActions';
 import InternetSpeedTracker from './InternetSpeedTracker';
 import AppUsage from './AppUsage';
-import { BASE_URL, IS_PRODUCTION, TRACKER_VERSION } from '../utils/constants';
+import { IS_PRODUCTION, TRACKER_VERSION } from '../utils/constants';
 import { fetchTrackingTimeDetails } from '../redux/activity/activityActions';
-import { getSystemTimezone } from '../utils/helpers';
 import SlidingTimeDisplay from './SlidingTimeDisplay';
 import ManualOffline from './ManualOffline';
 import StatsCards from './StatsCards';
@@ -36,15 +43,19 @@ function ActivityLogger({
 
   const [ownerId, setOwnerId] = useState(null);
 
+  function fetchWorkspaces() {
+    dispatch(
+      gettingEmployeeActionsList(
+        authToken,
+        'employee/auth/workspace/list',
+        'workspaces'
+      )
+    );
+  }
+
   useEffect(() => {
     if (!isLogging) {
-      dispatch(
-        gettingEmployeeActionsList(
-          authToken,
-          'employee/auth/workspace/list',
-          'workspaces'
-        )
-      );
+      fetchWorkspaces();
     }
   }, [isLogging]);
 
@@ -391,6 +402,7 @@ function ActivityLogger({
                 onManualOfflineTrigger={manualOfflineTriggerHandler}
                 isSleepMode={isSleepMode}
                 setClearStats={setClearStats}
+                setOwnerId={setOwnerId}
               />
 
               {/* Stats Grid */}
@@ -512,19 +524,40 @@ function ActivityLogger({
             )}
           </>
         ) : (
-          <div className="flex justify-center items-center h-64">
-            <select
-              onChange={handleWorkspaceSelection}
-              className="bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-            >
-              <option value="">Select a workspace</option>
-              {workspaces.map((workspace) => (
-                <option key={workspace.ownerId} value={workspace.ownerId}>
-                  {workspace.workspaceName}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div className="flex justify-center items-center h-64">
+              <select
+                onChange={handleWorkspaceSelection}
+                className="bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+              >
+                <option value="">Select a workspace</option>
+                {workspaces.map((workspace) => (
+                  <option key={workspace.ownerId} value={workspace.ownerId}>
+                    {workspace.workspaceName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="px-6 pb-4 border-gray-200 sm:px-8">
+              <p className="text-center text-sm text-gray-600 mb-3">
+                Can’t see your workspace list? <br />
+                <span className="text-red-600 font-bold">
+                  Click below to refresh
+                </span>{' '}
+                after waiting for at least{' '}
+                <span className="font-bold">1-2 minutes.</span>
+              </p>
+
+              <button
+                onClick={fetchWorkspaces}
+                className="mx-auto w-max flex justify-center items-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-800 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 transition duration-150"
+              >
+                <RefreshCcw className="mr-2 !w-4 !h-4" />
+                Fetch Workspaces
+              </button>
+            </div>
+          </>
         )}
       </div>
 

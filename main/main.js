@@ -44,7 +44,7 @@ let appWebsiteDetailsInterval;
 
 const DEFAULT_SCREENSHOT_TYPE = 'SCREENSHOT';
 const DEFAULT_CAPTURE_INTERVAL = 10;
-const DEFAULT_APP_WEBSITE_DETAILS_INTERVAL = 5;
+const DEFAULT_APP_WEBSITE_DETAILS_INTERVAL = 10;
 
 const DEFAULT_ACTIVITY_INTERVAL = 1;
 const DEFAULT_ACTIVITY_SPEED_LOCATION_INTERVAL = 1800;
@@ -1161,7 +1161,7 @@ async function uploadAppWebsiteDetails() {
 
       formData.append('files', file);
 
-      await axios.post(
+      const response = await axios.post(
         `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add`,
         formData,
         {

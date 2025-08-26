@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { BASE_URL } from './constants';
 
 export const getEmployeeToken = () => localStorage.getItem('employeeAuthToken');
@@ -9,17 +10,27 @@ export const getSystemTimezone = () => {
 export const getSpeed = async () => {
   const url = `${BASE_URL}/public/sample-files/image.jpg`;
 
-  const startTime = new Date().getTime();
+  try {
+    const startTime = Date.now();
 
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Network response was not ok');
+    const response = await fetch(url, { cache: 'no-store' });
 
-  const blob = await response.blob();
-  const endTime = new Date().getTime();
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch speed test file: ${response.status} ${response.statusText}`
+      );
+    }
 
-  const duration = (endTime - startTime) / 1000;
-  const fileSizeInBits = blob.size * 8;
-  const speed = fileSizeInBits / duration;
+    const blob = await response.blob();
+    const endTime = Date.now();
 
-  return speed;
+    const duration = (endTime - startTime) / 1000;
+    const fileSizeInBits = blob.size * 8;
+
+    const speed = fileSizeInBits / duration;
+    return speed;
+  } catch (error) {
+    console.error('Error fetching speed test file:', error.message || error);
+    return 0;
+  }
 };

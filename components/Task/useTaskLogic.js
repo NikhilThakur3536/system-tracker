@@ -34,7 +34,8 @@ const useTaskLogic = (
   initialSpeed,
   onManualOfflineTrigger,
   isSleepMode,
-  setClearStats
+  setClearStats,
+  setOwnerId
 ) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -620,6 +621,37 @@ const useTaskLogic = (
     };
   }, [authToken, isOnline, isSleepMode]);
 
+  function manualRestartTrigger() {
+    setIsLoading(false);
+    if (activityIntervalRef.current) {
+      clearInterval(activityIntervalRef.current);
+      activityIntervalRef.current = null;
+    }
+
+    setProjectTaskActivityDetailId(null);
+    setProjectTaskActivityId(null);
+    setActiveSession(null);
+    setProjectTaskId('');
+    setProjectId('');
+    setDescription('');
+
+    localStorage.removeItem('projectTaskActivityDetailId');
+    localStorage.removeItem('projectTaskActivityId');
+    localStorage.removeItem('activeSession');
+    localStorage.removeItem('projectTaskId');
+    localStorage.removeItem('screenshotType');
+    localStorage.removeItem('ownerId');
+
+    window.electronAPI.sendScreenshotType?.(DEFAULT_SCREENSHOT_TYPE);
+
+    stopLogging();
+    const userData = {
+      ownerId: null,
+    };
+    window.electronAPI.sendActivityData(userData);
+    setOwnerId(null);
+  }
+
   useEffect(() => {
     if (endedActivityRestart && isOnline) {
       if (typeof window !== 'undefined' && authToken !== null) {
@@ -628,11 +660,7 @@ const useTaskLogic = (
         const storedProjectTaskId = localStorage.getItem('projectTaskId');
         const storedDescription =
           localStorage.getItem('activeSession')?.description;
-        localStorage.removeItem('projectTaskActivityId');
-        localStorage.removeItem('projectTaskActivityDetailId');
         lastStatsRef.current = initialLastStats;
-        setProjectTaskActivityId(null);
-        setProjectTaskActivityDetailId(null);
 
         if (storedIsLogging) {
           if (storedOwnerId && storedProjectTaskId) {
@@ -668,12 +696,13 @@ const useTaskLogic = (
                       startLogging();
                       projectDetailActions();
                     } else {
-                      console.log(status?.error);
+                      manualRestartTrigger();
                     }
                   }
                 );
               } catch (error) {
                 console.error('Error in start activity handler:', error);
+                manualRestartTrigger();
               } finally {
                 setEndedActivityRestart(false);
               }
