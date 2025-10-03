@@ -663,7 +663,7 @@ const useTaskLogic = (
         lastStatsRef.current = initialLastStats;
 
         if (storedIsLogging) {
-          if (storedOwnerId && storedProjectTaskId) {
+          if (storedOwnerId) {
             const fetchData = async () => {
               setClearStats(true);
               setIsLoading(true);
@@ -674,7 +674,9 @@ const useTaskLogic = (
 
                 const payload = {
                   ownerId: storedOwnerId,
-                  projectTaskId: storedProjectTaskId,
+                  ...(storedProjectTaskId
+                    ? { projectTaskId: storedProjectTaskId }
+                    : {}),
                   description: storedDescription,
                   timezone: getSystemTimezone(),
                   ...geoLocation,
