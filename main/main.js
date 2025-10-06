@@ -994,9 +994,11 @@ async function captureAndSaveScreenshot() {
     }
 
     if (primaryDisplay) {
-      let screenshotBuffer = await sharp(primaryDisplay.thumbnail.toPNG()).png({
-        quality: 75,
-      });
+      let screenshotBuffer = await sharp(primaryDisplay.thumbnail.toPNG())
+        .png({
+          quality: 75,
+        })
+        .toBuffer();
 
       if (screenshotType === 'BLURRED-SCREENSHOT') {
         try {
