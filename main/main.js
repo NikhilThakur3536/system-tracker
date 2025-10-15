@@ -968,6 +968,7 @@ ipcMain.on('set-screenshot-type', (event, data) => {
 
 async function captureAndSaveScreenshot() {
   // SCREENSHOT, BACKGROUND, NO-SCREENSHOT, BLURRED-SCREENSHOT
+
   try {
     if (screenshotType === 'NO-SCREENSHOT') {
       return;
@@ -1060,37 +1061,45 @@ async function captureAndSaveScreenshot() {
             ownerId,
             new Date().toISOString(),
             fileName,
-            screenshotBuffer // screenshotBuffer is a Buffer, suitable for BLOB
+            screenshotBuffer // screenshot buffer is a Buffer, suitable for BLOB
           );
         } catch (err) {
           console.error('Failed to save screenshot offline:', err);
         }
       } else {
+        const fileType = file.type;
         const response = await axios.post(
-          `${API_BASE_URL}/employee/media/add`,
-          formData,
+          `${API_BASE_URL}/employee/v3/media/generate-signed-url`,
+          {
+            ownerId,
+            fileName,
+            fileType,
+          },
           {
             headers: {
               Authorization: `Bearer ${authToken}`,
-              'Content-Type': 'multipart/form-data',
+              'Content-Type': 'application/json',
             },
           }
         );
 
-        const mediaId = await response?.data?.data?.[0]?.id;
+        const signedUrl = await response?.data?.signedUrl;
 
-        const payload = {
-          ownerId,
-          mediaId,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        };
+        await axios.put(signedUrl, screenshotBuffer, {
+          headers: {
+            'Content-Type': 'image/png',
+          },
+        });
+
+        const mediaUrl = signedUrl.split('?')[0];
 
         await axios.post(
-          `${API_BASE_URL}/employee/v2/project/project/task/activity/screenshot/add`,
-          payload,
+          `${API_BASE_URL}/employee/v3/media/add`,
+          { ownerId, medias: [{ url: mediaUrl, type: fileType }] },
           {
             headers: {
               Authorization: `Bearer ${authToken}`,
+              'Content-Type': 'application/json',
             },
           }
         );
@@ -1138,8 +1147,12 @@ async function uploadAppWebsiteDetails() {
       appWebsiteDetails?.length - lastAppWebsiteDetails?.length
     );
 
-    const jsonString = JSON.stringify(appWebsiteDetailsDifference, null, 2);
-    const fileName = +new Date();
+    const jsonString = JSON.stringify(
+      appWebsiteDetailsDifference || [],
+      null,
+      2
+    );
+    const fileName = `${Date.now()}-app-website-details.json`;
 
     lastAppWebsiteDetails = JSON.parse(JSON.stringify(appWebsiteDetails));
 
@@ -1159,19 +1172,41 @@ async function uploadAppWebsiteDetails() {
         console.error('Failed to save screenshot offline:', err);
       }
     } else {
-      const file = new File([jsonString], fileName, {
-        type: 'text/plain',
-      });
+      const fileBuffer = Buffer.from(jsonString, 'utf-8');
+      const fileType = 'application/json';
 
-      formData.append('files', file);
-
-      await axios.post(
-        `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add`,
-        formData,
+      const response = await axios.post(
+        `${API_BASE_URL}/employee/v3/media/generate-signed-url`,
+        {
+          ownerId,
+          fileName,
+          fileType,
+        },
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const signedUrl = await response?.data?.signedUrl;
+
+      await axios.put(signedUrl, fileBuffer, {
+        headers: {
+          'Content-Type': fileType,
+        },
+      });
+
+      const docUrl = signedUrl.split('?')[0];
+
+      await axios.post(
+        `${API_BASE_URL}/employee/v3/media/add`,
+        { ownerId, medias: [{ url: docUrl, type: fileType }] },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
           },
         }
       );
