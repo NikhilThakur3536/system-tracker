@@ -181,7 +181,7 @@ async function syncOfflineData() {
     if (projectTaskActivityDetails && projectTaskActivityDetails?.length > 0) {
       try {
         await axios.post(
-          `${API_BASE_URL}/employee/v2/project/project/task/activity/detail/add/bulk`,
+          `${API_BASE_URL}/employee/v3/project/project/task/activity/detail/add/bulk`,
           payload,
           {
             headers: {
@@ -219,46 +219,17 @@ async function syncOfflineData() {
 
   if (screenshotRows && screenshotRows?.length > 0) {
     try {
-      // 1. Prepare FormData with all files
-      const formData = new FormData();
-      screenshotRows.forEach((row) => {
-        const blob = new Blob([row.screenshotBlob], { type: 'image/png' });
-        const file = new File([blob], row.fileName, { type: 'image/png' });
-        formData.append('files', file);
-      });
-      formData.append('ownerId', screenshotRows[0].ownerId);
-
-      // 2. Upload all files in one request
-      const uploadRes = await axios.post(
-        `${API_BASE_URL}/employee/media/add`,
-        formData,
+      // 1. Generate Signed URL for all screenshots
+      const fileType = 'image/png';
+      const response = await axios.post(
+        `${API_BASE_URL}/employee/v3/media/generate-multiple-signed-urls`,
         {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-
-      // 3. Prepare screenshot payload with mediaId and createdAt using index match
-      const mediaIds = uploadRes.data.data.map((item) => item.id);
-      const screenshotPayload = {
-        ownerId: String(
-          ownerId ||
-            (await store.get('ownerId')) ||
-            screenshotRows?.[0]?.ownerId
-        ),
-        projectTaskActivityScreenshots: screenshotRows.map((row, idx) => ({
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          mediaId: mediaIds[idx],
-          createdAt: new Date(row.screenshotTakenTime).toISOString(),
-        })),
-      };
-
-      // 4. Bulk upload screenshot metadata
-      await axios.post(
-        `${API_BASE_URL}/employee/v2/project/project/task/activity/screenshot/add/bulk`,
-        screenshotPayload,
+          ownerId,
+          files: screenshotRows.map((row) => ({
+            fileType,
+            fileName: row.fileName,
+          })),
+        },
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -267,7 +238,44 @@ async function syncOfflineData() {
         }
       );
 
-      // 5. Delete synced screenshots from DB
+      const signedUrls = await response?.data?.urls?.map(
+        (url) => url?.signedUrl
+      );
+
+      // 2. Upload all files in one request
+
+      await Promise.all(
+        screenshotRows?.map(async (row, idx) => {
+          await axios.put(signedUrls[idx], row.screenshotBlob, {
+            headers: {
+              'Content-Type': fileType,
+            },
+          });
+        })
+      );
+
+      // 3. Prepare screenshot payload with mediaUrl and createdAt using index match
+      const mediaUrls = signedUrls.map((url) => url.split('?')[0]);
+
+      await axios.post(
+        `${API_BASE_URL}/employee/v3/media/add`,
+        {
+          ownerId,
+          medias: screenshotRows?.map((row, idx) => ({
+            url: mediaUrls[idx],
+            type: fileType,
+            createdAt: new Date(row.screenshotTakenTime).toISOString(),
+          })),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // 4. Delete synced screenshots from DB
       screenshotRows.forEach((row) => {
         db.prepare('DELETE FROM offlineScreenshots WHERE id = ?').run(row.id);
       });
@@ -293,36 +301,70 @@ async function syncOfflineData() {
 
   if (appWebsiteDetailsRows && appWebsiteDetailsRows?.length > 0) {
     try {
-      // 1. Prepare FormData with all files
-      const formData = new FormData();
-      appWebsiteDetailsRows.forEach((row) => {
-        const file = new File([row.appWebsiteDetailsJSON], +row.fileName, {
-          type: 'text/plain',
-        });
-        formData.append('files', file);
-      });
-      formData.append('ownerId', appWebsiteDetailsRows[0].ownerId);
+      // 1. Generate Signed URL for all screenshots
+      const fileType = 'application/json';
 
-      // 2. Upload all files in one request
-      await axios.post(
-        `${API_BASE_URL}/employee/v3/project/project/task/activity/app-website-details/add/bulk`,
-        formData,
+      const response = await axios.post(
+        `${API_BASE_URL}/employee/v3/media/generate-multiple-signed-urls`,
+        {
+          ownerId,
+          files: appWebsiteDetailsRows.map((row) => ({
+            fileType,
+            fileName: row.fileName,
+          })),
+        },
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': 'application/json',
           },
         }
       );
 
-      // 3. Delete synced app website details from DB
+      const signedUrls = await response?.data?.urls?.map(
+        (url) => url?.signedUrl
+      );
+
+      // 2. Upload all files in one request
+
+      await Promise.all(
+        appWebsiteDetailsRows?.map(async (row, idx) => {
+          await axios.put(signedUrls[idx], row.appWebsiteDetailsJSON, {
+            headers: {
+              'Content-Type': fileType,
+            },
+          });
+        })
+      );
+
+      // 3. Prepare app website payload with mediaUrl and createdAt using index match
+      const docUrls = signedUrls.map((url) => url.split('?')[0]);
+
+      await axios.post(
+        `${API_BASE_URL}/employee/v3/media/add`,
+        {
+          ownerId,
+          medias: appWebsiteDetailsRows?.map((_, idx) => ({
+            url: docUrls[idx],
+            type: 'text/plain',
+          })),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // 4. Delete synced app website details from DB
       appWebsiteDetailsRows.forEach((row) => {
         db.prepare('DELETE FROM offlineAppWebsiteDetails WHERE id = ?').run(
           row.id
         );
       });
 
-      // 4. Reset sequence if table is empty
+      // 5. Reset sequence if table is empty
       const appWebsiteDetailsCount = db
         .prepare('SELECT COUNT(*) as count FROM offlineAppWebsiteDetails')
         .get().count;
@@ -1033,16 +1075,12 @@ async function captureAndSaveScreenshot() {
 
       const file = new File([screenshotBlob], fileName, { type: 'image/png' });
 
-      const formData = new FormData();
-      formData.append('files', file);
-
       authToken = authToken || (await store.get('authToken'));
       ownerId = ownerId || (await store.get('ownerId'));
 
       if (!ownerId || !authToken) {
         throw new Error('ownerId or authToken not set');
       }
-      formData.append('ownerId', ownerId);
 
       if (isOffline) {
         try {
@@ -1061,7 +1099,7 @@ async function captureAndSaveScreenshot() {
             ownerId,
             new Date().toISOString(),
             fileName,
-            screenshotBuffer // screenshot buffer is a Buffer, suitable for BLOB
+            screenshotBuffer
           );
         } catch (err) {
           console.error('Failed to save screenshot offline:', err);
@@ -1133,15 +1171,13 @@ function stopScreenshotCapture() {
 
 async function uploadAppWebsiteDetails() {
   try {
-    const formData = new FormData();
-
     authToken = authToken || (await store.get('authToken'));
     ownerId = ownerId || (await store.get('ownerId'));
+
     if (!ownerId || !authToken) {
       throw new Error('ownerId or authToken not set');
     }
 
-    formData.append('ownerId', ownerId);
     const appWebsiteDetailsDifference = appWebsiteDetails?.slice(
       0,
       appWebsiteDetails?.length - lastAppWebsiteDetails?.length
@@ -1202,7 +1238,7 @@ async function uploadAppWebsiteDetails() {
 
       await axios.post(
         `${API_BASE_URL}/employee/v3/media/add`,
-        { ownerId, medias: [{ url: docUrl, type: fileType }] },
+        { ownerId, medias: [{ url: docUrl, type: 'text/plain' }] },
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
