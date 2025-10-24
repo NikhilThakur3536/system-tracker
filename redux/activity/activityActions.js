@@ -6,7 +6,7 @@ export function activityActions(authToken, activityType, payload, isDetail) {
   return async () => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v3/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
+        `${API_BASE_URL}/employee/v4/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
         payload,
         {
           headers: {
@@ -121,7 +121,7 @@ export function fetchTrackingTimeDetails(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v3/project/tracked-hours/minute-wise`,
+        `${API_BASE_URL}/employee/v4/project/tracked-hours/minute-wise`,
         payload,
         {
           headers: {
@@ -148,7 +148,7 @@ export function getInitialStatsForToday(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v3/project/stats/minute-wise`,
+        `${API_BASE_URL}/employee/v4/project/stats/minute-wise`,
         payload,
         {
           headers: {
@@ -175,7 +175,7 @@ export function sendInternetSpeedGeolocation(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v3/employee-internet-speed/add`,
+        `${API_BASE_URL}/employee/v4/employee-internet-speed/add`,
         payload,
         {
           headers: {

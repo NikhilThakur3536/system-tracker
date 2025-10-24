@@ -181,7 +181,7 @@ async function syncOfflineData() {
     if (projectTaskActivityDetails && projectTaskActivityDetails?.length > 0) {
       try {
         await axios.post(
-          `${API_BASE_URL}/employee/v3/project/project/task/activity/detail/add/bulk`,
+          `${API_BASE_URL}/employee/v4/project/project/task/activity/detail/add/bulk`,
           payload,
           {
             headers: {
@@ -222,7 +222,7 @@ async function syncOfflineData() {
       // 1. Generate Signed URL for all screenshots
       const fileType = 'image/png';
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v3/media/generate-multiple-signed-urls`,
+        `${API_BASE_URL}/employee/v4/media/generate-multiple-signed-urls`,
         {
           ownerId,
           files: screenshotRows.map((row) => ({
@@ -258,7 +258,7 @@ async function syncOfflineData() {
       const mediaUrls = signedUrls.map((url) => url.split('?')[0]);
 
       await axios.post(
-        `${API_BASE_URL}/employee/v3/media/add`,
+        `${API_BASE_URL}/employee/v4/media/add`,
         {
           ownerId,
           medias: screenshotRows?.map((row, idx) => ({
@@ -305,7 +305,7 @@ async function syncOfflineData() {
       const fileType = 'application/json';
 
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v3/media/generate-multiple-signed-urls`,
+        `${API_BASE_URL}/employee/v4/media/generate-multiple-signed-urls`,
         {
           ownerId,
           files: appWebsiteDetailsRows.map((row) => ({
@@ -340,7 +340,7 @@ async function syncOfflineData() {
       const docUrls = signedUrls.map((url) => url.split('?')[0]);
 
       await axios.post(
-        `${API_BASE_URL}/employee/v3/media/add`,
+        `${API_BASE_URL}/employee/v4/media/add`,
         {
           ownerId,
           medias: appWebsiteDetailsRows?.map((_, idx) => ({
@@ -1106,7 +1106,7 @@ async function captureAndSaveScreenshot() {
       } else {
         const fileType = file.type;
         const response = await axios.post(
-          `${API_BASE_URL}/employee/v3/media/generate-signed-url`,
+          `${API_BASE_URL}/employee/v4/media/generate-signed-url`,
           {
             ownerId,
             fileName,
@@ -1131,7 +1131,7 @@ async function captureAndSaveScreenshot() {
         const mediaUrl = signedUrl.split('?')[0];
 
         await axios.post(
-          `${API_BASE_URL}/employee/v3/media/add`,
+          `${API_BASE_URL}/employee/v4/media/add`,
           { ownerId, medias: [{ url: mediaUrl, type: fileType }] },
           {
             headers: {
@@ -1211,7 +1211,7 @@ async function uploadAppWebsiteDetails() {
       const fileType = 'application/json';
 
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v3/media/generate-signed-url`,
+        `${API_BASE_URL}/employee/v4/media/generate-signed-url`,
         {
           ownerId,
           fileName,
@@ -1236,7 +1236,7 @@ async function uploadAppWebsiteDetails() {
       const docUrl = signedUrl.split('?')[0];
 
       await axios.post(
-        `${API_BASE_URL}/employee/v3/media/add`,
+        `${API_BASE_URL}/employee/v4/media/add`,
         { ownerId, medias: [{ url: docUrl, type: 'text/plain' }] },
         {
           headers: {
