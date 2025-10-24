@@ -337,7 +337,6 @@ async function syncOfflineData() {
         })
       );
 
-      // 3. Prepare app website payload with mediaUrl and createdAt using index match
       const docUrls = signedUrls.map((url) => url.split('?')[0]);
 
       await axios.post(

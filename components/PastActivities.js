@@ -233,10 +233,10 @@ export default function PastActivities({ authToken, ownerId, isOnline }) {
                 {pastActivities.map((activity) => (
                   <tr key={activity.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-bold whitespace-nowrap">
-                      {activity.projectTask?.name}
+                      {activity.projectTask?.name || 'N/A'}
                     </td>
                     <td className="px-4 py-3 font-bold whitespace-nowrap">
-                      {activity.projectTask?.project?.name}
+                      {activity.projectTask?.project?.name || 'N/A'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {activity.startTime ? (

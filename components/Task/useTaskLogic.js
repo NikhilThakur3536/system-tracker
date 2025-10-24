@@ -108,7 +108,7 @@ const useTaskLogic = (
   const fetchSpeed = useCallback(async () => {
     if (isLogging && authToken && isOnline) {
       const speed = await getSpeed();
-      return speed || 'offline';
+      return speed || 0;
     }
   }, [isLogging, authToken, isOnline]);
 
@@ -248,14 +248,29 @@ const useTaskLogic = (
           if (status?.success) {
             failureCountRef.current = 0;
 
-            updateTrackedHourDetails(status?.totalTime, status?.idleTime);
+            const hasActivity =
+              activityDifference.mouseClick > 0 ||
+              activityDifference.scroll > 0 ||
+              activityDifference.keystroke > 0;
+
+            if (hasActivity) {
+              inactivityCountRef.current = 0;
+              updateTrackedHourDetails(status?.totalTime, 0);
+            } else {
+              inactivityCountRef.current += 1;
+
+              if (inactivityCountRef.current <= idleTimeIntervalRef.current) {
+                updateTrackedHourDetails(status?.totalTime, 0);
+              }
+            }
+
             setProjectTaskActivityDetailId(status?.id);
             localStorage.setItem('projectTaskActivityDetailId', status?.id);
           } else {
             console.log('End activity error:', status?.error?.data?.error);
 
             failureCountRef.current += 1;
-            console.log(failureCountRef.current);
+
             if (failureCountRef.current === SERVER_ERROR_INTERVAL_RETEST) {
               await serverOfflineTriggerHandler(status);
               failureCountRef.current = 0;
