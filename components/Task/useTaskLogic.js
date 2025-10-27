@@ -471,7 +471,9 @@ const useTaskLogic = (
       const currentProjectActivityId =
         projectTaskActivityId || localStorage.getItem('projectTaskActivityId');
 
-      const startTime = intervalStartTimeRef.current;
+      const startTime =
+        intervalStartTimeRef.current ||
+        Date.now() - (activityInterval || 1) * 60 * 1000;
 
       intervalStartTimeRef.current = Date.now();
 
