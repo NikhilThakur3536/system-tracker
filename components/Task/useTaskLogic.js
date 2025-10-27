@@ -47,6 +47,7 @@ const useTaskLogic = (
   const intervalStartTimeRef = useRef(null);
   const statsRef = useRef(stats);
   const projectTaskActivityDetailIdRef = useRef(null);
+  const offlineTransitionTimeoutRef = useRef(null);
 
   const initialLastStats = {
     clickCount: 0,
@@ -333,6 +334,11 @@ const useTaskLogic = (
       }
     };
 
+    if (offlineTransitionTimeoutRef.current) {
+      clearTimeout(offlineTransitionTimeoutRef.current);
+      offlineTransitionTimeoutRef.current = null;
+    }
+
     if (!isOnline && intervalStartTimeRef.current) {
       const bufferTimeInSeconds = 5000;
       const currentTime = Date.now();
@@ -342,7 +348,8 @@ const useTaskLogic = (
         intervalDuration - elapsedTime + bufferTimeInSeconds;
 
       if (remainingTime > 0) {
-        setTimeout(() => {
+        offlineTransitionTimeoutRef.current = setTimeout(() => {
+          offlineTransitionTimeoutRef.current = null;
           intervalStartTimeRef.current = Date.now() + bufferTimeInSeconds;
 
           if (activityIntervalRef.current) {
@@ -632,6 +639,11 @@ const useTaskLogic = (
       if (activityIntervalRef.current) {
         clearInterval(activityIntervalRef.current);
         activityIntervalRef.current = null;
+      }
+
+      if (offlineTransitionTimeoutRef.current) {
+        clearTimeout(offlineTransitionTimeoutRef.current);
+        offlineTransitionTimeoutRef.current = null;
       }
     };
   }, [authToken, isOnline, isSleepMode]);
