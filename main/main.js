@@ -6,6 +6,7 @@ const {
   powerMonitor,
   Tray,
   Menu,
+  crashReporter,
 } = require('electron');
 
 const sharp = require('sharp');
@@ -13,6 +14,8 @@ const store = require('electron-settings');
 const path = require('path');
 const { GlobalKeyboardListener } = require('node-global-key-listener');
 const moment = require('moment');
+const fs = require('fs');
+const os = require('os');
 
 const { spawn } = require('child_process');
 
@@ -20,14 +23,111 @@ const { spawn } = require('child_process');
 const { default: axios } = require('axios');
 const dns = require('dns');
 
+const IS_PRODUCTION = false;
+const API_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
+const API_BASE_URL = `${API_URL}/api`;
+
+const CRASH_REPORT_API = `${API_BASE_URL}/employee/v4/crash-report/add`;
+
+// ============= CRASH REPORTING SETUP =============
+
+crashReporter.start({
+  productName: 'Activity Tracker',
+  companyName: 'Digital Links',
+  submitURL: CRASH_REPORT_API,
+  uploadToServer: false,
+  ignoreSystemCrashHandler: false,
+  rateLimit: true,
+  compress: true,
+});
+
+// Function to get system info
+function getSystemInfo() {
+  return {
+    platform: process.platform,
+    arch: process.arch,
+    osVersion: os.release(),
+    osType: os.type(),
+    totalMemory: os.totalmem(),
+    freeMemory: os.freemem(),
+    cpuModel: os.cpus()[0]?.model || 'unknown',
+    cpuCores: os.cpus().length,
+    electronVersion: process.versions.electron,
+    chromeVersion: process.versions.chrome,
+    nodeVersion: process.versions.node,
+    appVersion: app.getVersion(),
+  };
+}
+
+async function sendCrashReport(crashType, error, additionalInfo = {}) {
+  const crashData = {
+    error: {
+      message: error?.message || String(error),
+      stack: error?.stack || 'No stack trace available',
+      name: error?.name || 'UnknownError',
+    },
+    systemInfo: getSystemInfo(),
+    appState: {
+      isLogging: global.isLogging || false,
+      isOffline: global.isOffline || false,
+      authToken: global.authToken ? 'present' : 'missing',
+      ownerId: global.ownerId || 'not set',
+    },
+    ...additionalInfo,
+  };
+
+  const errorMessage = error?.message || String(error);
+
+  try {
+    await axios.post(
+      CRASH_REPORT_API,
+      {
+        crashType,
+        errorMessage,
+        report: crashData,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log('Crash report sent to server');
+  } catch (error) {}
+
+  return crashData;
+}
+
+process.on('uncaughtException', async (error) => {
+  console.error('Uncaught Exception:', error);
+  await sendCrashReport('main-uncaught-exception', error);
+});
+
+process.on('unhandledRejection', async (reason, promise) => {
+  // Convert non-Error types to Error
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+
+  const skipErrors = ['EPERM', 'EACCES', 'ENOENT'];
+
+  if (
+    skipErrors.includes(error.code) ||
+    /electron-settings/i.test(error.stack || '') ||
+    /settings\.json/i.test(error.path || '')
+  ) {
+    return;
+  }
+
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+
+  await sendCrashReport('main-unhandled-rejection', error, {
+    promise: String(promise),
+  });
+});
+
 // Command line functions for performance efficiency.
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-
-const IS_PRODUCTION = false;
-const API_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
-const API_BASE_URL = `${API_URL}/api`;
 
 // Offline & Online
 let isOffline = false;
@@ -402,6 +502,7 @@ ipcMain.handle('set-activity-data', async (event, data) => {
     return { success: true };
   } catch (error) {
     console.error('Failed to set activity data:', error);
+    await sendCrashReport('set-activity-data-error', error);
     return { success: false, error: error.message };
   }
 });
@@ -690,20 +791,96 @@ async function createWindow() {
     }
   });
 
-  mainWindow.webContents.on('crashed', () => {
+  mainWindow.webContents.on('crashed', async (event, killed) => {
     console.error('Window crashed, attempting to reload...');
+    await sendCrashReport(
+      'renderer-crashed',
+      new Error('Renderer process crashed'),
+      {
+        killed,
+        url: mainWindow?.webContents?.getURL() || 'unknown',
+      }
+    );
+
     if (!mainWindow.isDestroyed()) {
       mainWindow.reload();
     }
   });
 
-  mainWindow.webContents.on('unresponsive', () => {
+  mainWindow.webContents.on('unresponsive', async () => {
     console.warn('Window became unresponsive');
+    await sendCrashReport(
+      'renderer-unresponsive',
+      new Error('Renderer process became unresponsive'),
+      {
+        url: mainWindow?.webContents?.getURL() || 'unknown',
+      }
+    );
   });
 
-  mainWindow.webContents.on('responsive', () => {
+  mainWindow.webContents.on('responsive', async () => {
     console.log('Window became responsive again');
+    await sendCrashReport(
+      'render-process-gone',
+      new Error('Render process terminated'),
+      {
+        reason: details.reason,
+        exitCode: details.exitCode,
+      }
+    );
   });
+
+  mainWindow.webContents.on('render-process-gone', async (_, details) => {
+    console.error('Render process gone:', details);
+    await sendCrashReport(
+      'render-process-gone',
+      new Error('Render process terminated'),
+      {
+        reason: details.reason,
+        exitCode: details.exitCode,
+      }
+    );
+  });
+
+  mainWindow.webContents.on(
+    'console-message',
+    async (_, level, message, line, sourceId) => {
+      if (level === 3) {
+        console.error(`Renderer Error: ${message} (${sourceId}:${line})`);
+
+        if (
+          message.includes('Uncaught') ||
+          message.includes('TypeError') ||
+          message.includes('ReferenceError') ||
+          message.includes('UnhandledPromiseRejection')
+        ) {
+          await sendCrashReport('renderer-console-error', new Error(message), {
+            source: sourceId,
+            line,
+            processId: process.pid,
+            platform: process.platform,
+            timestamp: new Date().toISOString(),
+            currentUrl: mainWindow?.webContents?.getURL() || 'unknown',
+          });
+        }
+      }
+    }
+  );
+
+  mainWindow.webContents.on(
+    'did-fail-load',
+    async (event, errorCode, errorDescription, validatedURL) => {
+      console.error(`Page failed to load: ${errorDescription} (${errorCode})`);
+      await sendCrashReport(
+        'renderer-load-failed',
+        new Error(errorDescription),
+        {
+          errorCode,
+          validatedURL,
+        }
+      );
+    }
+  );
 
   if (isDev) {
     mainWindow.webContents.openDevTools();
@@ -854,6 +1031,26 @@ if (!gotTheLock) {
     if (mainWindow === null) {
       createWindow();
     }
+  });
+
+  app.on('child-process-gone', async (event, details) => {
+    console.error('Child process gone:', details);
+    await sendCrashReport('child-process-gone', new Error(details.reason), {
+      type: details.type,
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
+
+  app.on('gpu-process-crashed', async (event, killed) => {
+    await sendCrashReport(
+      'gpu-process-crashed',
+      new Error('GPU process crashed'),
+      {
+        killed,
+        platform: process.platform,
+      }
+    );
   });
 }
 
