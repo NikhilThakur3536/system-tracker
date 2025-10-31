@@ -19,6 +19,10 @@ const os = require('os');
 
 const { spawn } = require('child_process');
 
+// APP Name
+app.setName('Activity Tracker - Digital Links');
+app.setAppUserModelId('com.infoware-logger.123');
+
 // API
 const { default: axios } = require('axios');
 const dns = require('dns');
@@ -1537,6 +1541,15 @@ ipcMain.on('stop-logging', () => {
 
 ipcMain.handle('get-initial-stats', async () => {
   return stats;
+});
+
+ipcMain.on('show-tray-alert', () => {
+  tray.displayBalloon({
+    iconType: 'warning',
+    title: 'Are you active?',
+    content:
+      'You have been idle for quite a long time. Please check the tracker.',
+  });
 });
 
 function saveStats(stats) {

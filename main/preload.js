@@ -58,4 +58,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('fetch-idle-time-interval');
     ipcRenderer.on('idle-time-interval', (_, value) => callback(value));
   },
+
+  // Show tray alert
+  showTrayAlert: () => ipcRenderer.send('show-tray-alert'),
 });

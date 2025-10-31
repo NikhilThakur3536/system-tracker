@@ -141,6 +141,8 @@ const useTaskLogic = (
   }, [authToken]);
 
   const inactivityCountRef = useRef(0);
+  const isFirstInactivityAlert = useRef(false);
+  const lastInactivityAlertAtRef = useRef(0);
   const trackedHourDetailsRef = useRef({
     totalTime: 0,
     idleTime: 0,
@@ -256,9 +258,29 @@ const useTaskLogic = (
 
             if (hasActivity) {
               inactivityCountRef.current = 0;
+              lastInactivityAlertAtRef.current = 0;
               updateTrackedHourDetails(status?.totalTime, 0);
             } else {
               inactivityCountRef.current += 1;
+              const quarterInterval = idleTimeIntervalRef.current / 4;
+              const threeQuarterInterval =
+                (3 * idleTimeIntervalRef.current) / 4;
+
+              if (isFirstInactivityAlert.current) {
+                if (inactivityCountRef.current >= quarterInterval) {
+                  isFirstInactivityAlert.current = false;
+                  window.electronAPI.showTrayAlert();
+                  lastInactivityAlertAtRef.current = quarterInterval;
+                }
+              } else {
+                if (
+                  inactivityCountRef.current >=
+                  lastInactivityAlertAtRef.current + threeQuarterInterval
+                ) {
+                  window.electronAPI.showTrayAlert();
+                  lastInactivityAlertAtRef.current = inactivityCountRef.current;
+                }
+              }
 
               if (inactivityCountRef.current <= idleTimeIntervalRef.current) {
                 updateTrackedHourDetails(status?.totalTime, 0);
@@ -303,10 +325,30 @@ const useTaskLogic = (
 
         if (hasActivity) {
           inactivityCountRef.current = 0;
+          lastInactivityAlertAtRef.current = 0;
           trackedHourDetailsRef.current.trackedHourInSeconds += durationInSec;
           window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
         } else {
           inactivityCountRef.current += 1;
+
+          const quarterInterval = idleTimeIntervalRef.current / 4;
+          const threeQuarterInterval = (3 * idleTimeIntervalRef.current) / 4;
+
+          if (isFirstInactivityAlert.current) {
+            if (inactivityCountRef.current >= quarterInterval) {
+              isFirstInactivityAlert.current = false;
+              window.electronAPI.showTrayAlert();
+              lastInactivityAlertAtRef.current = quarterInterval;
+            }
+          } else {
+            if (
+              inactivityCountRef.current >=
+              lastInactivityAlertAtRef.current + threeQuarterInterval
+            ) {
+              window.electronAPI.showTrayAlert();
+              lastInactivityAlertAtRef.current = inactivityCountRef.current;
+            }
+          }
 
           if (inactivityCountRef.current <= idleTimeIntervalRef.current) {
             trackedHourDetailsRef.current.trackedHourInSeconds += durationInSec;
@@ -378,6 +420,7 @@ const useTaskLogic = (
 
   const projectDetailActions = async () => {
     intervalStartTimeRef.current = Date.now();
+    isFirstInactivityAlert.current = true;
 
     setIsLoading(false);
     await activityDataHandler();
