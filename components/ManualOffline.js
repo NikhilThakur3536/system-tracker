@@ -51,7 +51,7 @@ const modalMessageHandler = (minutes, isError) => {
   `;
 };
 
-const ManualOffline = forwardRef((_, ref) => {
+const ManualOffline = forwardRef(({ manualOffline, setManualOffline }, ref) => {
   const defaultMinutes = Math.ceil(APP_OFFLINE_SWITCH_INTERVAL / (60 * 1000));
   const dispatch = useDispatch();
   const isElectron = typeof window !== 'undefined' && window.electronAPI;
@@ -61,7 +61,6 @@ const ManualOffline = forwardRef((_, ref) => {
     (state) => state.employee.internetConnectionStatus
   );
 
-  const [manualOffline, setManualOffline] = useState(false);
   const [isOnlineDisabled, setIsOnlineDisabled] = useState(false);
   const [isActuallyOnline, setIsActuallyOnline] = useState(true);
 

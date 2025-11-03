@@ -272,6 +272,7 @@ function ActivityLogger({
   const [initialSpeed, setInitialSpeed] = useState(null);
 
   // Offline triggering handler
+  const [manualOffline, setManualOffline] = useState(false);
   const manualOfflineRef = useRef(null);
 
   function manualOfflineTriggerHandler() {
@@ -373,7 +374,13 @@ function ActivityLogger({
                 </button>
               </div>
 
-              {isLogging && <ManualOffline ref={manualOfflineRef} />}
+              {isLogging && (
+                <ManualOffline
+                  manualOffline={manualOffline}
+                  setManualOffline={setManualOffline}
+                  ref={manualOfflineRef}
+                />
+              )}
             </div>
 
             <div
@@ -403,6 +410,7 @@ function ActivityLogger({
                 isSleepMode={isSleepMode}
                 setClearStats={setClearStats}
                 setOwnerId={setOwnerId}
+                setManualOffline={setManualOffline}
               />
 
               {/* Stats Grid */}

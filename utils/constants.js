@@ -13,6 +13,6 @@ export const DEFAULT_SCREENSHOT_TYPE = 'SCREENSHOT';
 // Intervals and Time Related Constants
 export const UPDATE_CHECKER_TIME = 30 * 60 * 1000;
 export const REFRESH_CALL_TIME = 30 * 60 * 1000;
-export const APP_OFFLINE_SWITCH_INTERVAL = 15 * 60 * 1000;
+export const APP_OFFLINE_SWITCH_INTERVAL = 10 * 60 * 1000;
 
 export const SERVER_ERROR_INTERVAL_RETEST = 2;

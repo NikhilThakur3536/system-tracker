@@ -14,7 +14,6 @@ const store = require('electron-settings');
 const path = require('path');
 const { GlobalKeyboardListener } = require('node-global-key-listener');
 const moment = require('moment');
-const fs = require('fs');
 const os = require('os');
 
 const { spawn } = require('child_process');
@@ -724,6 +723,10 @@ async function fetchCaptureInterval() {
   }
 }
 
+function getIconPath() {
+  return path.join(__dirname, '..', 'build', 'icon.ico');
+}
+
 // Create main application window
 async function createWindow() {
   const isDev = await import('electron-is-dev').then(
@@ -736,7 +739,7 @@ async function createWindow() {
     show: false,
     simpleFullscreen: true,
     title: 'Activity Tracker - Digital Links',
-    icon: path.join(__dirname, '..', 'build', 'icon.ico'),
+    icon: getIconPath(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -914,8 +917,7 @@ async function startPostWindowTasks() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, '..', 'build', 'icon.ico');
-  tray = new Tray(iconPath);
+  tray = new Tray(getIconPath());
 
   const contextMenu = Menu.buildFromTemplate([
     {

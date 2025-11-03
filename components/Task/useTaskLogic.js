@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { gettingEmployeeActionsList } from '../../redux/employee/employeeActions';
+import {
+  getInternetConnectionStatus,
+  gettingEmployeeActionsList,
+} from '../../redux/employee/employeeActions';
 import { activityActions } from '../../redux/activity/activityActions';
 import { BASE_URL, TRACKER_VERSION } from '../../utils/constants';
 import { getSpeed, getSystemTimezone } from '../../utils/helpers';
@@ -35,7 +38,8 @@ const useTaskLogic = (
   onManualOfflineTrigger,
   isSleepMode,
   setClearStats,
-  setOwnerId
+  setOwnerId,
+  setManualOffline
 ) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -818,6 +822,28 @@ const useTaskLogic = (
       }
     }
   }, [endedActivityRestart, authToken, isOnline, stats]);
+
+  useEffect(() => {
+    if (!endedActivityRestart && !isOnline && authToken !== null) {
+      if (navigator.onLine) {
+        const manualofflineStats = JSON.parse(
+          localStorage.getItem('manualOfflineState')
+        );
+        if (manualofflineStats) {
+          const isManualTimePassed = Date.now() > manualofflineStats.expiresAt;
+          if (isManualTimePassed) {
+            setManualOffline(false);
+            dispatch(getInternetConnectionStatus(true));
+            if (typeof window !== 'undefined' && window.electronAPI) {
+              window.electronAPI?.notifyOnline?.();
+            }
+            localStorage.removeItem('manualOfflineState');
+            return;
+          }
+        }
+      }
+    }
+  }, [endedActivityRestart, authToken, isOnline]);
 
   return {
     projectId,

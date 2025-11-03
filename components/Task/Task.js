@@ -33,6 +33,7 @@ const Task = ({
   isSleepMode,
   setClearStats,
   setOwnerId,
+  setManualOffline,
 }) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -74,7 +75,8 @@ const Task = ({
     onManualOfflineTrigger,
     isSleepMode,
     setClearStats,
-    setOwnerId
+    setOwnerId,
+    setManualOffline
   );
 
   useEffect(() => {
