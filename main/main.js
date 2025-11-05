@@ -505,7 +505,6 @@ ipcMain.handle('set-activity-data', async (event, data) => {
     return { success: true };
   } catch (error) {
     console.error('Failed to set activity data:', error);
-    await sendCrashReport('set-activity-data-error', error);
     return { success: false, error: error.message };
   }
 });
@@ -828,11 +827,10 @@ async function createWindow() {
   mainWindow.webContents.on('responsive', async () => {
     console.log('Window became responsive again');
     await sendCrashReport(
-      'render-process-gone',
-      new Error('Render process terminated'),
+      'renderer-responsive',
+      new Error('Renderer became responsive again'),
       {
-        reason: details.reason,
-        exitCode: details.exitCode,
+        url: mainWindow?.webContents?.getURL() || 'unknown',
       }
     );
   });
@@ -847,32 +845,31 @@ async function createWindow() {
         exitCode: details.exitCode,
       }
     );
-  });
 
-  mainWindow.webContents.on(
-    'console-message',
-    async (_, level, message, line, sourceId) => {
-      if (level === 3) {
-        console.error(`Renderer Error: ${message} (${sourceId}:${line})`);
-
-        if (
-          message.includes('Uncaught') ||
-          message.includes('TypeError') ||
-          message.includes('ReferenceError') ||
-          message.includes('UnhandledPromiseRejection')
-        ) {
-          await sendCrashReport('renderer-console-error', new Error(message), {
-            source: sourceId,
-            line,
-            processId: process.pid,
-            platform: process.platform,
-            timestamp: new Date().toISOString(),
-            currentUrl: mainWindow?.webContents?.getURL() || 'unknown',
-          });
-        }
+    if (details.reason === 'oom') {
+      if (tray) {
+        tray.displayBalloon({
+          iconType: 'error',
+          title: 'Activity Tracker',
+          content:
+            'App ran out of memory and will restart automatically. Please open it manually if restarting failed.',
+        });
       }
+
+      setTimeout(() => {
+        try {
+          if (tray) tray.destroy();
+          app.relaunch();
+        } catch (e) {
+          console.error('Failed to relaunch:', e);
+        } finally {
+          app.exit(0);
+        }
+      }, 5000);
+    } else {
+      if (!mainWindow.isDestroyed()) mainWindow.reload();
     }
-  );
+  });
 
   mainWindow.webContents.on(
     'did-fail-load',
