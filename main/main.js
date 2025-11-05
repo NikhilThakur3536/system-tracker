@@ -852,7 +852,7 @@ async function createWindow() {
           iconType: 'error',
           title: 'Activity Tracker',
           content:
-            'App ran out of memory and will restart automatically. Please open it manually if restarting failed.',
+            'Something went wrong! If Activity Tracker does not restart automatically, please open it manually.',
         });
       }
 
