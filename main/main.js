@@ -26,8 +26,15 @@ app.setAppUserModelId('com.infoware-logger.123');
 const { default: axios } = require('axios');
 const dns = require('dns');
 
+// Environment related set up
 const IS_PRODUCTION = false;
 const API_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
+const DOMAIN_TYPE = IS_PRODUCTION ? 'production' : 'test';
+
+const domainId =
+  DOMAIN_TYPE === 'production'
+    ? 'a2ee38f6-507a-41ae-bbb4-72d2e17b29ed'
+    : '2420feae-a698-4de9-9679-332bfbe1ba68';
 const API_BASE_URL = `${API_URL}/api`;
 
 const CRASH_REPORT_API = `${API_BASE_URL}/employee/v4/crash-report/add`;
@@ -651,12 +658,10 @@ async function fetchCaptureInterval() {
     }
   } else {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/employee/auth/configuration/get`,
-        {},
+      const response = await axios.get(
+        `${API_BASE_URL}/employee/v4/auth/configuration/get/${domainId}`,
         {
           headers: {
-            Authorization: `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
         }

@@ -19,6 +19,7 @@ import { fetchTrackingTimeDetails } from '../redux/activity/activityActions';
 import SlidingTimeDisplay from './SlidingTimeDisplay';
 import ManualOffline from './ManualOffline';
 import StatsCards from './StatsCards';
+import { RefreshCw } from 'lucide-react';
 
 function ActivityLogger({
   onLogout,
@@ -498,6 +499,31 @@ function ActivityLogger({
                   </p>
                 </div> */}
               </div>
+
+              {isOnline ? (
+                <div className="bg-blue-50 border border-blue-200 text-blue-900 text-sm rounded-xl p-4 leading-relaxed">
+                  <p>
+                    When App goes from{' '}
+                    <span className="font-semibold">offline</span> to
+                    <span className="font-semibold"> online</span>, then there
+                    is a sync from the
+                    <span className="font-semibold"> local exe</span> to the
+                    <span className="font-semibold"> server</span>.{' '}
+                    <span className="font-semibold">Active time</span> may take
+                    few minutes to update or click
+                    <span className="font-semibold"> refresh icon</span>{' '}
+                    <span className="inline-block align-middle">
+                      <RefreshCw size={16} />
+                    </span>{' '}
+                    in the active time section.
+                  </p>
+
+                  <p className="mt-1 text-xs italic text-blue-700">
+                    * Sync duration may vary depending on network speed and data
+                    size.
+                  </p>
+                </div>
+              ) : null}
 
               {/* Keys Pressed Section */}
               {IS_PRODUCTION ? null : (
