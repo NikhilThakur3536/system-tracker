@@ -1,7 +1,7 @@
 // Environment related set up
-export const IS_PRODUCTION = false;
+export const IS_PRODUCTION = true;
 export const DOMAIN_TYPE = IS_PRODUCTION ? 'production' : 'test';
-export const BASE_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
+export const BASE_URL = `https://webtracker${IS_PRODUCTION ? 'dev' : ''}.infoware.xyz`;
 
 // API & Tracker related constants
 export const API_BASE_URL = `${BASE_URL}/api`;

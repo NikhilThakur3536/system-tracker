@@ -233,7 +233,9 @@ const useTaskLogic = (
           projectTaskActivityId ||
           localStorage.getItem('projectTaskActivityId');
 
-        const startTime = intervalStartTimeRef.current;
+        const startTime =
+          intervalStartTimeRef.current ||
+          Date.now() - (activityInterval || 1) * 60 * 1000;
         intervalStartTimeRef.current = Date.now();
 
         dispatch(
@@ -305,10 +307,12 @@ const useTaskLogic = (
           }
         });
       } else {
+        const startTime =
+          intervalStartTimeRef.current ||
+          Date.now() - (activityInterval || 1) * 60 * 1000;
+
         const now = Date.now();
-        const durationInSec = Math.floor(
-          (now - intervalStartTimeRef.current) / 1000
-        );
+        const durationInSec = Math.floor((now - startTime) / 1000);
 
         const offlineActivityData = {
           ownerId,
@@ -318,7 +322,7 @@ const useTaskLogic = (
           appWebsites: updatedStats?.appWebsites || [],
           timezone: getSystemTimezone(),
           ...activityDifference,
-          startTime: new Date(intervalStartTimeRef.current).toISOString(),
+          startTime: new Date(startTime).toISOString(),
           endTime: new Date().toISOString(),
         };
 
@@ -354,9 +358,10 @@ const useTaskLogic = (
             }
           }
 
+          window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
+
           if (inactivityCountRef.current <= idleTimeIntervalRef.current) {
             trackedHourDetailsRef.current.trackedHourInSeconds += durationInSec;
-            window.electronAPI.sendOfflineActivityData?.(offlineActivityData);
           } else {
             trackedHourDetailsRef.current.idleTime += durationInSec;
           }

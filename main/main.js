@@ -27,8 +27,8 @@ const { default: axios } = require('axios');
 const dns = require('dns');
 
 // Environment related set up
-const IS_PRODUCTION = false;
-const API_URL = `https://webtracker${IS_PRODUCTION ? 'prod' : ''}.infoware.xyz`;
+const IS_PRODUCTION = true;
+const API_URL = `https://webtracker${IS_PRODUCTION ? 'dev' : ''}.infoware.xyz`;
 const DOMAIN_TYPE = IS_PRODUCTION ? 'production' : 'test';
 
 const domainId =
@@ -38,6 +38,9 @@ const domainId =
 const API_BASE_URL = `${API_URL}/api`;
 
 const CRASH_REPORT_API = `${API_BASE_URL}/employee/v4/crash-report/add`;
+
+const CRASH_MESSAGE =
+  'Something went wrong! If Activity Tracker does not restart automatically, please open it manually.';
 
 // ============= CRASH REPORTING SETUP =============
 
@@ -138,6 +141,12 @@ process.on('unhandledRejection', async (reason, promise) => {
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing', 'true');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('disable-gpu-driver-bug-workarounds');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=3072');
 
 // Offline & Online
 let isOffline = false;
@@ -856,8 +865,7 @@ async function createWindow() {
         tray.displayBalloon({
           iconType: 'error',
           title: 'Activity Tracker',
-          content:
-            'Something went wrong! If Activity Tracker does not restart automatically, please open it manually.',
+          content: CRASH_MESSAGE,
         });
       }
 
@@ -1048,6 +1056,25 @@ if (!gotTheLock) {
       reason: details.reason,
       exitCode: details.exitCode,
     });
+
+    if (tray) {
+      tray.displayBalloon({
+        iconType: 'error',
+        title: 'Activity Tracker',
+        content: CRASH_MESSAGE,
+      });
+    }
+
+    setTimeout(() => {
+      try {
+        if (tray) tray.destroy();
+        app.relaunch();
+      } catch (e) {
+        console.error('Failed to relaunch:', e);
+      } finally {
+        app.exit(0);
+      }
+    }, 5000);
   });
 
   app.on('gpu-process-crashed', async (event, killed) => {
