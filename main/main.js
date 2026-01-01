@@ -278,17 +278,36 @@ async function syncOfflineData() {
     );
 
     const projectTaskActivityDetails = filteredProjectTaskActivityDetails.map(
-      (row) => ({
-        projectTaskActivityId: row.projectTaskActivityId,
-        mouseClick: row.mouseClick ?? 0,
-        keystroke: row.keystroke ?? 0,
-        keyPressed: row.keyPressed ?? '',
-        scroll: row.scroll ?? 0,
-        appWebsites: row.appWebsites ? JSON.parse(row.appWebsites) : [],
-        startTime: row.intervalStartTime ?? '',
-        endTime: row.intervalEndTime ?? '',
-        timezone: row.timezone || 'unknown',
-      })
+      (row) => {
+        let startTime = row.intervalStartTime;
+        const endTime = row.intervalEndTime;
+
+        const isEpochStartTime =
+          startTime &&
+          !isNaN(new Date(startTime).getTime()) &&
+          new Date(startTime).getTime() === 0;
+
+        if (isEpochStartTime && endTime) {
+          const calculatedStartTime = new Date(
+            new Date(endTime).getTime() -
+              (activityIntervalMinutes || DEFAULT_ACTIVITY_INTERVAL) * 60 * 1000
+          );
+
+          startTime = calculatedStartTime.toISOString();
+        }
+
+        return {
+          projectTaskActivityId: row.projectTaskActivityId,
+          mouseClick: row.mouseClick ?? 0,
+          keystroke: row.keystroke ?? 0,
+          keyPressed: row.keyPressed ?? '',
+          scroll: row.scroll ?? 0,
+          appWebsites: row.appWebsites ? JSON.parse(row.appWebsites) : [],
+          startTime: startTime ?? '',
+          endTime: endTime ?? '',
+          timezone: row.timezone || 'unknown',
+        };
+      }
     );
 
     const payload = {
@@ -309,12 +328,10 @@ async function syncOfflineData() {
             },
           }
         );
-
         // Remove synced row
         statsRows.forEach((row) =>
           db.prepare('DELETE FROM offlineStats WHERE id = ?').run(row.id)
         );
-
         // Reset sequence if table is empty
         const statsCount = db
           .prepare('SELECT COUNT(*) as count FROM offlineStats')
