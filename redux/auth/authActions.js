@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../../utils/constants';
 export function loginOrRegisterEmployee(payload) {
   return (dispatch) =>
     axios
-      .post(`${API_BASE_URL}/employee/auth/login`, payload)
+      .post(`${API_BASE_URL}/employee/v5/auth/login`, payload)
       .then((data) => {
         const authToken = data?.data?.data?.token;
         const employeeDetails = data?.data?.data?.user;
@@ -47,9 +47,13 @@ export function getAuthDetails() {
 }
 
 export function logOutEmployee() {
+  const deviceId = localStorage.getItem('deviceId');
+
   localStorage.removeItem('employeeAuthToken');
   localStorage.removeItem('employeeDetails');
   localStorage.clear();
+
+  localStorage.setItem('deviceId', deviceId);
 
   return {
     type: type.EMPLOYEE_LOGOUT,

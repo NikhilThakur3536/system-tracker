@@ -1,12 +1,11 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/constants';
-import moment from 'moment';
 
 export function activityActions(authToken, activityType, payload, isDetail) {
   return async () => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v4/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
+        `${API_BASE_URL}/employee/v5/project/project/task/activity${isDetail ? '/detail' : ''}/${activityType}`,
         payload,
         {
           headers: {
@@ -121,7 +120,7 @@ export function fetchTrackingTimeDetails(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v4/project/tracked-hours/minute-wise`,
+        `${API_BASE_URL}/employee/v5/project/tracked-hours/minute-wise`,
         payload,
         {
           headers: {
@@ -148,7 +147,7 @@ export function getInitialStatsForToday(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v4/project/stats/minute-wise`,
+        `${API_BASE_URL}/employee/v5/project/stats/minute-wise`,
         payload,
         {
           headers: {
@@ -175,11 +174,36 @@ export function sendInternetSpeedGeolocation(authToken, payload) {
   return async () => {
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/employee/v4/employee-internet-speed/add`,
+        `${API_BASE_URL}/employee/v5/employee-internet-speed/add`,
         payload,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error,
+      };
+    }
+  };
+}
+
+export function sendRestartSessionRequest(payload) {
+  return async () => {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/employee/v5/auth/close-all-active-sessions`,
+        payload,
+        {
+          headers: {
             'Content-Type': 'application/json',
           },
         }

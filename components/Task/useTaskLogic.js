@@ -6,7 +6,7 @@ import {
 } from '../../redux/employee/employeeActions';
 import { activityActions } from '../../redux/activity/activityActions';
 import { BASE_URL, TRACKER_VERSION } from '../../utils/constants';
-import { getSpeed, getSystemTimezone } from '../../utils/helpers';
+import { getDeviceId, getSpeed, getSystemTimezone } from '../../utils/helpers';
 import {
   DEFAULT_SCREENSHOT_TYPE,
   SERVER_ERROR_INTERVAL_RETEST,
@@ -39,7 +39,8 @@ const useTaskLogic = (
   isSleepMode,
   setClearStats,
   setOwnerId,
-  setManualOffline
+  setManualOffline,
+  setIsLoginFound
 ) => {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -250,6 +251,7 @@ const useTaskLogic = (
               ...activityDifference,
               startTime: new Date(startTime).toISOString(),
               endTime: new Date().toISOString(),
+              deviceId: getDeviceId(),
             },
             true
           )
@@ -296,7 +298,11 @@ const useTaskLogic = (
             setProjectTaskActivityDetailId(status?.id);
             localStorage.setItem('projectTaskActivityDetailId', status?.id);
           } else {
-            console.log('End activity error:', status?.error?.data?.error);
+            if (status?.error?.status == 403) {
+              setIsLoginFound(true);
+              setIsLoading(false);
+              manualRestartTrigger();
+            }
 
             failureCountRef.current += 1;
 
@@ -452,6 +458,7 @@ const useTaskLogic = (
       speed,
       trackerVersion: TRACKER_VERSION,
       ipAddress: await getIpAddress(),
+      deviceId: getDeviceId(),
     };
 
     const activeSessionObj = {
@@ -477,10 +484,18 @@ const useTaskLogic = (
           };
           window.electronAPI.sendActivityData(userData);
           startLogging();
-
           projectDetailActions();
         } else {
-          console.log(status?.error);
+          const error = status?.error;
+          const errorStatus = error?.status;
+          if (errorStatus == 403) {
+            setApiError({
+              message: error?.data?.error,
+              code: errorStatus,
+            });
+            setIsLoginFound(true);
+          }
+          setIsLoading(false);
         }
       })
       .finally(() => setIsLoading(false));
@@ -541,6 +556,7 @@ const useTaskLogic = (
             ...activityDifference,
             startTime: new Date(startTime).toISOString(),
             endTime: new Date().toISOString(),
+            deviceId: getDeviceId(),
           },
           true
         )
@@ -763,6 +779,7 @@ const useTaskLogic = (
                   ...geoLocation,
                   trackerVersion: TRACKER_VERSION,
                   speed,
+                  deviceId: getDeviceId(),
                 };
 
                 dispatch(activityActions(authToken, 'start', payload)).then(
@@ -779,6 +796,16 @@ const useTaskLogic = (
                       startLogging();
                       projectDetailActions();
                     } else {
+                      const error = status?.error;
+                      const errorStatus = error?.status;
+                      if (errorStatus == 403) {
+                        setApiError({
+                          message: error?.data?.error,
+                          code: errorStatus,
+                        });
+                        setIsLoginFound(true);
+                      }
+                      setIsLoading(false);
                       manualRestartTrigger();
                     }
                   }

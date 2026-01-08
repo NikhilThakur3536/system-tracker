@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { BASE_URL } from './constants';
 
 export const getEmployeeToken = () => localStorage.getItem('employeeAuthToken');
@@ -6,6 +5,8 @@ export const getEmployeeToken = () => localStorage.getItem('employeeAuthToken');
 export const getSystemTimezone = () => {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 };
+
+export const getDeviceId = () => localStorage.getItem('deviceId');
 
 export const getSpeed = async () => {
   const url = `${BASE_URL}/public/sample-files/image.jpg`;

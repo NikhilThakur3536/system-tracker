@@ -2,11 +2,16 @@ import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Eye, EyeOff } from 'lucide-react';
 import { loginOrRegisterEmployee } from '../redux/auth/authActions';
-import { API_BASE_URL, DOMAIN_TYPE, TRACKER_VERSION } from '../utils/constants';
+import { TRACKER_VERSION } from '../utils/constants';
+import { getDeviceId } from '../utils/helpers';
 import ApiErrorLogger from './ApiErrorLogger';
+import Forbidden403 from './ActivityTracker/Forbidden403';
+import { sendRestartSessionRequest } from '../redux/activity/activityActions';
 
 export default function LoginForm({ onLogin, domainId, fetchDomainId }) {
   const dispatch = useDispatch();
+
+  const [isLoginFound, setIsLoginFound] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,41 +51,82 @@ export default function LoginForm({ onLogin, domainId, fetchDomainId }) {
     }
   }
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+
     if (validateForm()) {
-      dispatch(
-        loginOrRegisterEmployee({
-          email,
-          password,
-          domainId,
-          desktopTrackerVersion: TRACKER_VERSION,
-          operatingSystem: getOperatingSystem(),
-        })
-      ).then((status) => {
-        if (status.success) {
-          window.electronAPI.sendUserData({ authToken: status?.authToken });
-          onLogin();
+      handleLoginUser();
+    }
+  };
+
+  const handleLoginUser = async () => {
+    dispatch(
+      loginOrRegisterEmployee({
+        email,
+        password,
+        domainId,
+        desktopTrackerVersion: TRACKER_VERSION,
+        operatingSystem: getOperatingSystem(),
+        deviceId: getDeviceId(),
+      })
+    ).then((status) => {
+      if (status.success) {
+        window.electronAPI.sendUserData({ authToken: status?.authToken });
+        onLogin();
+      } else {
+        const error = status?.error;
+        const errorStatus = error?.status;
+        const errorMessage = error?.data?.error;
+
+        if (errorStatus == 403) {
+          setIsLoginFound(true);
         } else {
           setErrors({
-            form: status?.error?.data?.error,
+            form: errorMessage,
             email: 'Please enter a valid email',
             password: 'Please enter a valid password',
           });
 
           setApiError({
-            message: status?.error?.data?.error,
-            code: status?.error?.status,
+            message: errorMessage,
+            code: errorStatus,
           });
         }
+      }
+    });
+  };
+
+  async function handleCloseAllSessions() {
+    const status = await dispatch(
+      sendRestartSessionRequest({
+        domainId,
+        email,
+      })
+    );
+
+    if (status?.success) {
+      setIsLoginFound(false);
+      handleLoginUser();
+    } else {
+      const error = status?.error;
+      const errorStatus = error?.status;
+      const errorMessage = error?.data?.error;
+
+      setApiError({
+        message: errorMessage,
+        code: errorStatus,
       });
     }
-  };
+  }
 
   return (
     <>
       {apiError ? (
         <ApiErrorLogger error={apiError} onClose={() => setApiError(null)} />
+      ) : null}
+
+      {isLoginFound ? (
+        <Forbidden403 onRestartRequest={handleCloseAllSessions} />
       ) : null}
 
       <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-12 sm:px-6 lg:px-8">

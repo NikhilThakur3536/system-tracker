@@ -134,7 +134,11 @@ const HardReset = ({
 
                           await dispatch(logOutEmployee());
 
-                          setTimeout(() => localStorage.clear(), 500);
+                          setTimeout(() => {
+                            const deviceId = localStorage.getItem('deviceId');
+                            localStorage.clear();
+                            localStorage.setItem('deviceId', deviceId);
+                          }, 500);
                           setIsLoading(false);
                           onClose();
                           if (isElectron) {

@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Device Id
+  getDeviceId: () => ipcRenderer.send('get-device-id'),
+  onDeviceId: (callback) =>
+    ipcRenderer.once('device-id', (_, deviceId) => callback(deviceId)),
+
   // exit app
   exitApp: () => ipcRenderer.send('exit-app'),
 

@@ -36,6 +36,7 @@ function ActivityLogger({
   setIsLoading,
   isSleepMode,
   setClearStats,
+  setIsLoginFound,
 }) {
   const dispatch = useDispatch();
   const isOnline = useSelector(
@@ -412,6 +413,7 @@ function ActivityLogger({
                 setClearStats={setClearStats}
                 setOwnerId={setOwnerId}
                 setManualOffline={setManualOffline}
+                setIsLoginFound={setIsLoginFound}
               />
 
               {/* Stats Grid */}

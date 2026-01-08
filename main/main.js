@@ -8,6 +8,7 @@ const {
   Menu,
   crashReporter,
 } = require('electron');
+const { machineIdSync } = require('node-machine-id');
 
 const sharp = require('sharp');
 const store = require('electron-settings');
@@ -37,7 +38,7 @@ const domainId =
     : '2420feae-a698-4de9-9679-332bfbe1ba68';
 const API_BASE_URL = `${API_URL}/api`;
 
-const CRASH_REPORT_API = `${API_BASE_URL}/employee/v4/crash-report/add`;
+const CRASH_REPORT_API = `${API_BASE_URL}/employee/v5/crash-report/add`;
 
 const CRASH_MESSAGE =
   'Something went wrong! If Activity Tracker does not restart automatically, please open it manually.';
@@ -146,6 +147,13 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=2048');
 app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
+// Device ID
+const deviceId = machineIdSync(true);
+
+ipcMain.on('get-device-id', (event) => {
+  event.reply('device-id', deviceId);
+});
 
 // Offline & Online
 let isOffline = false;
@@ -313,12 +321,13 @@ async function syncOfflineData() {
       ownerId:
         ownerId || (await store.get('ownerId')) || statsRows?.[0]?.ownerId,
       projectTaskActivityDetails,
+      deviceId,
     };
 
     if (projectTaskActivityDetails && projectTaskActivityDetails?.length > 0) {
       try {
         await axios.post(
-          `${API_BASE_URL}/employee/v4/project/project/task/activity/detail/add/bulk`,
+          `${API_BASE_URL}/employee/v5/project/project/task/activity/detail/add/bulk`,
           payload,
           {
             headers: {
@@ -357,9 +366,10 @@ async function syncOfflineData() {
       // 1. Generate Signed URL for all screenshots
       const fileType = 'image/png';
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v4/media/generate-multiple-signed-urls`,
+        `${API_BASE_URL}/employee/v5/media/generate-multiple-signed-urls`,
         {
           ownerId,
+          deviceId,
           files: screenshotRows.map((row) => ({
             fileType,
             fileName: row.fileName,
@@ -393,7 +403,7 @@ async function syncOfflineData() {
       const mediaUrls = signedUrls.map((url) => url.split('?')[0]);
 
       await axios.post(
-        `${API_BASE_URL}/employee/v4/media/add`,
+        `${API_BASE_URL}/employee/v5/media/add`,
         {
           ownerId,
           medias: screenshotRows?.map((row, idx) => ({
@@ -440,9 +450,10 @@ async function syncOfflineData() {
       const fileType = 'application/json';
 
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v4/media/generate-multiple-signed-urls`,
+        `${API_BASE_URL}/employee/v5/media/generate-multiple-signed-urls`,
         {
           ownerId,
+          deviceId,
           files: appWebsiteDetailsRows.map((row) => ({
             fileType,
             fileName: row.fileName,
@@ -475,7 +486,7 @@ async function syncOfflineData() {
       const docUrls = signedUrls.map((url) => url.split('?')[0]);
 
       await axios.post(
-        `${API_BASE_URL}/employee/v4/media/add`,
+        `${API_BASE_URL}/employee/v5/media/add`,
         {
           ownerId,
           medias: appWebsiteDetailsRows?.map((_, idx) => ({
@@ -684,7 +695,7 @@ async function fetchCaptureInterval() {
   } else {
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/employee/v4/auth/configuration/get/${domainId}`,
+        `${API_BASE_URL}/employee/v5/auth/configuration/get/${domainId}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -1354,7 +1365,7 @@ async function captureAndSaveScreenshot() {
       } else {
         const fileType = file.type;
         const response = await axios.post(
-          `${API_BASE_URL}/employee/v4/media/generate-signed-url`,
+          `${API_BASE_URL}/employee/v5/media/generate-signed-url`,
           {
             ownerId,
             fileName,
@@ -1379,7 +1390,7 @@ async function captureAndSaveScreenshot() {
         const mediaUrl = signedUrl.split('?')[0];
 
         await axios.post(
-          `${API_BASE_URL}/employee/v4/media/add`,
+          `${API_BASE_URL}/employee/v5/media/add`,
           { ownerId, medias: [{ url: mediaUrl, type: fileType }] },
           {
             headers: {
@@ -1459,7 +1470,7 @@ async function uploadAppWebsiteDetails() {
       const fileType = 'application/json';
 
       const response = await axios.post(
-        `${API_BASE_URL}/employee/v4/media/generate-signed-url`,
+        `${API_BASE_URL}/employee/v5/media/generate-signed-url`,
         {
           ownerId,
           fileName,
@@ -1484,7 +1495,7 @@ async function uploadAppWebsiteDetails() {
       const docUrl = signedUrl.split('?')[0];
 
       await axios.post(
-        `${API_BASE_URL}/employee/v4/media/add`,
+        `${API_BASE_URL}/employee/v5/media/add`,
         { ownerId, medias: [{ url: docUrl, type: 'text/plain' }] },
         {
           headers: {
@@ -1521,6 +1532,7 @@ function stopAppWebsiteDetailsInterval() {
 // ------- App Website Details End -------
 
 // IPC handlers
+
 ipcMain.handle('start-logging', async () => {
   await store.set('stats', initialStats);
   isLogging = true;

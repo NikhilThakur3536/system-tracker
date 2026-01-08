@@ -4,10 +4,7 @@ import Dashboard from '../../components/Dashboard';
 import moment from 'moment';
 import { useSelector, useDispatch } from 'react-redux';
 import { appUpdateChecker, logOutEmployee } from '../../redux/auth/authActions';
-import {
-  getActivityEndStatus,
-  removeActivityDetailTimeout,
-} from '../../redux/activity/activityActions';
+import { getActivityEndStatus } from '../../redux/activity/activityActions';
 import Loader from '../../components/Loader';
 import {
   API_BASE_URL,
@@ -20,7 +17,13 @@ import { Download, RefreshCcw } from 'lucide-react';
 import { DEFAULT_SCREENSHOT_TYPE } from '../../utils/constants';
 import ApiSuccessLogger from '../SuccessToast';
 
-function ActivityTracker({ isOnline, isSleepMode }) {
+function ActivityTracker({
+  isOnline,
+  isSleepMode,
+  setIsLoginFound,
+  domainId,
+  setDomainId,
+}) {
   const dispatch = useDispatch();
 
   const [isUpdateRequired, setIsUpdateRequired] = useState(false);
@@ -193,8 +196,6 @@ function ActivityTracker({ isOnline, isSleepMode }) {
     }
   }, [isLogging]);
 
-  const [domainId, setDomainId] = useState(null);
-
   function fetchDomainId() {
     fetch(`${API_BASE_URL}/employee/auth/domain/get`, {
       method: 'POST',
@@ -339,6 +340,7 @@ function ActivityTracker({ isOnline, isSleepMode }) {
           domainId={domainId}
           setDomainId={setDomainId}
           fetchDomainId={fetchDomainId}
+          setIsLoginFound={setIsLoginFound}
         />
       ) : (
         <Loader isLoading={isLoading}>
@@ -357,6 +359,7 @@ function ActivityTracker({ isOnline, isSleepMode }) {
             setIsLoading={setIsLoading}
             isSleepMode={isSleepMode}
             setClearStats={setClearStats}
+            setIsLoginFound={setIsLoginFound}
           />
         </Loader>
       )}
