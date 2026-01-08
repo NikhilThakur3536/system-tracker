@@ -301,7 +301,6 @@ const useTaskLogic = (
             if (status?.error?.status == 403) {
               setIsLoginFound(true);
               setIsLoading(false);
-              manualRestartTrigger();
             }
 
             failureCountRef.current += 1;

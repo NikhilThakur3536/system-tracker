@@ -369,7 +369,6 @@ async function syncOfflineData() {
         `${API_BASE_URL}/employee/v5/media/generate-multiple-signed-urls`,
         {
           ownerId,
-          deviceId,
           files: screenshotRows.map((row) => ({
             fileType,
             fileName: row.fileName,
@@ -453,7 +452,6 @@ async function syncOfflineData() {
         `${API_BASE_URL}/employee/v5/media/generate-multiple-signed-urls`,
         {
           ownerId,
-          deviceId,
           files: appWebsiteDetailsRows.map((row) => ({
             fileType,
             fileName: row.fileName,
