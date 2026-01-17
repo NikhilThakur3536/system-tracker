@@ -51,6 +51,7 @@ const useTaskLogic = (
   const activityIntervalRef = useRef(null);
   const intervalStartTimeRef = useRef(null);
   const statsRef = useRef(stats);
+  const projectTaskActivityIdRef = useRef(null);
   const projectTaskActivityDetailIdRef = useRef(null);
   const offlineTransitionTimeoutRef = useRef(null);
 
@@ -106,6 +107,10 @@ const useTaskLogic = (
   useEffect(() => {
     statsRef.current = stats;
   }, [stats]);
+
+  useEffect(() => {
+    projectTaskActivityIdRef.current = projectTaskActivityId;
+  }, [projectTaskActivityId]);
 
   useEffect(() => {
     projectTaskActivityDetailIdRef.current = projectTaskActivityDetailId;
@@ -231,7 +236,7 @@ const useTaskLogic = (
 
       if (isOnline) {
         const currentProjectActivityId =
-          projectTaskActivityId ||
+          projectTaskActivityIdRef.current ||
           localStorage.getItem('projectTaskActivityId');
 
         const startTime =
@@ -322,7 +327,7 @@ const useTaskLogic = (
         const offlineActivityData = {
           ownerId,
           projectTaskActivityId:
-            projectTaskActivityId ||
+            projectTaskActivityIdRef.current ||
             localStorage.getItem('projectTaskActivityId'),
           appWebsites: updatedStats?.appWebsites || [],
           timezone: getSystemTimezone(),
@@ -476,6 +481,7 @@ const useTaskLogic = (
       .then(async (status) => {
         if (status?.success) {
           setProjectTaskActivityId(status?.id);
+          projectTaskActivityIdRef.current = status?.id;
           localStorage.setItem('projectTaskActivityId', status?.id);
 
           const userData = {
@@ -535,7 +541,8 @@ const useTaskLogic = (
 
     try {
       const currentProjectActivityId =
-        projectTaskActivityId || localStorage.getItem('projectTaskActivityId');
+        projectTaskActivityIdRef.current ||
+        localStorage.getItem('projectTaskActivityId');
 
       const startTime =
         intervalStartTimeRef.current ||
@@ -615,6 +622,7 @@ const useTaskLogic = (
         setProjectId('');
         setProjectTaskId('');
         setProjectTaskActivityId(null);
+        projectTaskActivityIdRef.current = null;
         setDescription('');
         setActiveSession(null);
 
@@ -674,6 +682,8 @@ const useTaskLogic = (
               setIsLoading(true);
             }
 
+            projectTaskActivityIdRef.current = storedProjectTaskActivityId;
+
             if (storedProjectTaskActivityDetailId) {
               setProjectTaskActivityDetailId(storedProjectTaskActivityDetailId);
             }
@@ -726,6 +736,7 @@ const useTaskLogic = (
 
     setProjectTaskActivityDetailId(null);
     setProjectTaskActivityId(null);
+    projectTaskActivityIdRef.current = null;
     setActiveSession(null);
     setProjectTaskId('');
     setProjectId('');
@@ -785,6 +796,7 @@ const useTaskLogic = (
                   async (status) => {
                     if (status?.success) {
                       setProjectTaskActivityId(status?.id);
+                      projectTaskActivityIdRef.current = status?.id;
                       localStorage.setItem('projectTaskActivityId', status?.id);
 
                       const userData = {
