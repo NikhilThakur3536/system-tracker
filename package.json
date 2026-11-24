@@ -8,6 +8,7 @@
     "start": "next start && electron .",
     "electron-dev": "electron .",
     "format": "prettier --write .",
+    "build:win": "npm run rebuild && python -m PyInstaller --onefile --name scroll_tracker --distpath python-dist --workpath build/pyinstaller-work --specpath build/pyinstaller-spec main/scroll_tracker.py && next build && electron-builder --win nsis --x64",
     "build": "npm run rebuild && pyinstaller --onefile --name scroll_tracker main/scroll_tracker.py && next build && electron-builder",
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
