@@ -1,9 +1,7 @@
-cat > .github/workflows/build-windows.yml <<'EOF'
 name: Build Activity Tracker Windows EXE
 
-on:
+"on":
   workflow_dispatch:
-
   push:
     branches:
       - "**"
@@ -44,4 +42,3 @@ jobs:
           name: Activity-Tracker-Windows-x64
           path: dist/*.exe
           if-no-files-found: error
-EOF
