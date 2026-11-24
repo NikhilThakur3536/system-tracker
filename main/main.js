@@ -9,7 +9,7 @@ const {
   crashReporter,
 } = require('electron');
 const { machineIdSync } = require('node-machine-id');
-
+//updates
 const sharp = require('sharp');
 const store = require('electron-settings');
 const path = require('path');
