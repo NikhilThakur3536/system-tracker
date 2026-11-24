@@ -66,4 +66,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Show tray alert
   showTrayAlert: () => ipcRenderer.send('show-tray-alert'),
+
+  // Blocker / antivirus alerts
+  onBlockerAlert: (callback) =>
+    ipcRenderer.on('blocker-alert', (_, alert) => callback(alert)),
+  removeBlockerAlertListener: () =>
+    ipcRenderer.removeAllListeners('blocker-alert'),
 });

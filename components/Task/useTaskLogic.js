@@ -116,6 +116,33 @@ const useTaskLogic = (
     projectTaskActivityDetailIdRef.current = projectTaskActivityDetailId;
   }, [projectTaskActivityDetailId]);
 
+  // The id returned by the latest "activity/start" call is the source of truth
+  // for every follow-up activity request. Persist it before React re-renders so
+  // a running interval cannot keep using the id from the previous session.
+  const persistActivityId = (newId) => {
+    if (typeof window === 'undefined' || !newId) return false;
+
+    localStorage.setItem('projectTaskActivityId', newId);
+    projectTaskActivityIdRef.current = newId;
+    setProjectTaskActivityId(newId);
+    return true;
+  };
+
+  const getCurrentActivityId = () => {
+    if (typeof window === 'undefined') return projectTaskActivityIdRef.current;
+
+    const storedId = localStorage.getItem('projectTaskActivityId');
+
+    // localStorage is updated synchronously when a start response arrives.
+    // Refresh the ref from it so a stale ref (seeded on app restore/wake) can
+    // never win over the newer id in subsequent API payloads.
+    if (storedId && storedId !== projectTaskActivityIdRef.current) {
+      projectTaskActivityIdRef.current = storedId;
+    }
+
+    return storedId || projectTaskActivityIdRef.current;
+  };
+
   const fetchSpeed = useCallback(async () => {
     if (isLogging && authToken && isOnline) {
       const speed = await getSpeed();
@@ -235,9 +262,7 @@ const useTaskLogic = (
       };
 
       if (isOnline) {
-        const currentProjectActivityId =
-          projectTaskActivityIdRef.current ||
-          localStorage.getItem('projectTaskActivityId');
+        const currentProjectActivityId = getCurrentActivityId();
 
         const startTime =
           intervalStartTimeRef.current ||
@@ -326,9 +351,7 @@ const useTaskLogic = (
 
         const offlineActivityData = {
           ownerId,
-          projectTaskActivityId:
-            projectTaskActivityIdRef.current ||
-            localStorage.getItem('projectTaskActivityId'),
+          projectTaskActivityId: getCurrentActivityId(),
           appWebsites: updatedStats?.appWebsites || [],
           timezone: getSystemTimezone(),
           ...activityDifference,
@@ -480,9 +503,7 @@ const useTaskLogic = (
     dispatch(activityActions(authToken, 'start', payload))
       .then(async (status) => {
         if (status?.success) {
-          setProjectTaskActivityId(status?.id);
-          projectTaskActivityIdRef.current = status?.id;
-          localStorage.setItem('projectTaskActivityId', status?.id);
+          persistActivityId(status?.id);
 
           const userData = {
             ownerId,
@@ -540,9 +561,7 @@ const useTaskLogic = (
     };
 
     try {
-      const currentProjectActivityId =
-        projectTaskActivityIdRef.current ||
-        localStorage.getItem('projectTaskActivityId');
+      const currentProjectActivityId = getCurrentActivityId();
 
       const startTime =
         intervalStartTimeRef.current ||
@@ -765,8 +784,17 @@ const useTaskLogic = (
         const storedIsLogging = JSON.parse(localStorage.getItem('isLogging'));
         const storedOwnerId = localStorage.getItem('ownerId');
         const storedProjectTaskId = localStorage.getItem('projectTaskId');
-        const storedDescription =
-          localStorage.getItem('activeSession')?.description;
+        const storedActiveSession = localStorage.getItem('activeSession');
+        let storedDescription;
+
+        try {
+          storedDescription = storedActiveSession
+            ? JSON.parse(storedActiveSession)?.description
+            : undefined;
+        } catch {
+          storedDescription = undefined;
+        }
+
         lastStatsRef.current = initialLastStats;
 
         if (storedIsLogging) {
@@ -792,35 +820,35 @@ const useTaskLogic = (
                   deviceId: getDeviceId(),
                 };
 
-                dispatch(activityActions(authToken, 'start', payload)).then(
-                  async (status) => {
-                    if (status?.success) {
-                      setProjectTaskActivityId(status?.id);
-                      projectTaskActivityIdRef.current = status?.id;
-                      localStorage.setItem('projectTaskActivityId', status?.id);
-
-                      const userData = {
-                        ownerId,
-                      };
-                      window.electronAPI.sendActivityData(userData);
-                      setClearStats(true);
-                      startLogging();
-                      projectDetailActions();
-                    } else {
-                      const error = status?.error;
-                      const errorStatus = error?.status;
-                      if (errorStatus == 403) {
-                        setApiError({
-                          message: error?.data?.error,
-                          code: errorStatus,
-                        });
-                        setIsLoginFound(true);
-                      }
-                      setIsLoading(false);
-                      manualRestartTrigger();
-                    }
-                  }
+                // Await the response before the restart flag is cleared, so
+                // the new id is stored before any restore effect runs again.
+                const status = await dispatch(
+                  activityActions(authToken, 'start', payload)
                 );
+
+                if (status?.success) {
+                  persistActivityId(status?.id);
+
+                  const userData = {
+                    ownerId,
+                  };
+                  window.electronAPI.sendActivityData(userData);
+                  setClearStats(true);
+                  startLogging();
+                  projectDetailActions();
+                } else {
+                  const error = status?.error;
+                  const errorStatus = error?.status;
+                  if (errorStatus == 403) {
+                    setApiError({
+                      message: error?.data?.error,
+                      code: errorStatus,
+                    });
+                    setIsLoginFound(true);
+                  }
+                  setIsLoading(false);
+                  manualRestartTrigger();
+                }
               } catch (error) {
                 console.error('Error in start activity handler:', error);
                 manualRestartTrigger();

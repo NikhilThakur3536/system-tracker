@@ -17,7 +17,7 @@ const { GlobalKeyboardListener } = require('node-global-key-listener');
 const moment = require('moment');
 const os = require('os');
 
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 // APP Name
 app.setName('Activity Tracker - Digital Links');
@@ -30,7 +30,7 @@ const dns = require('dns');
 // Environment related set up
 const IS_PRODUCTION = true;
 const API_URL = `https://webtracker${IS_PRODUCTION ? 'dev' : ''}.infoware.xyz`;
-const DOMAIN_TYPE = IS_PRODUCTION ? 'production' : 'test';
+const DOMAIN_TYPE = IS_PRODUCTION ? 'test' : 'test';
 
 const domainId =
   DOMAIN_TYPE === 'production'
@@ -42,6 +42,179 @@ const CRASH_REPORT_API = `${API_BASE_URL}/employee/v5/crash-report/add`;
 
 const CRASH_MESSAGE =
   'Something went wrong! If Activity Tracker does not restart automatically, please open it manually.';
+
+// ============= BLOCKER / ANTIVIRUS ALERTS =============
+
+const BLOCKER_ALERT_COOLDOWN_MS = 3 * 60 * 1000;
+const SECURITY_SCAN_DELAY_MS = 15 * 1000;
+const SECURITY_SCAN_INTERVAL_MS = 10 * 60 * 1000;
+
+// Windows Defender is on by default on almost every machine, so it is ignored
+// unless this is switched on. Other security tools are reported once each.
+const ALERT_ON_WINDOWS_DEFENDER = false;
+
+const SECURITY_PROCESS_SIGNATURES = [
+  {
+    label: 'Windows Defender',
+    names: ['msmpeng', 'msascui', 'securityhealth', 'windefend'],
+  },
+  {
+    label: 'Quick Heal',
+    names: ['quickheal', 'qhwatchdog', 'qhsafe', 'qhguard', 'qhwsc'],
+  },
+  { label: 'Kaspersky', names: ['avp', 'kaspersky', 'kavsvc'] },
+  { label: 'Avast', names: ['avastui', 'avastsvc', 'aswidsagent'] },
+  { label: 'AVG', names: ['avgui', 'avgwdsvc', 'avgsvc'] },
+  { label: 'Norton', names: ['navw32', 'norton', 'ccsvchst'] },
+  { label: 'McAfee', names: ['mcshield', 'mcupdmgr', 'masvc', 'mcuihost'] },
+  { label: 'Bitdefender', names: ['bdagent', 'vsserv', 'bdservicehost'] },
+  { label: 'ESET', names: ['egui', 'ekrn'] },
+  { label: 'Sophos', names: ['sophosui', 'sophosfs', 'savservice'] },
+  { label: 'Trend Micro', names: ['tmbmsrv', 'ntrtscan', 'tmccsf'] },
+  { label: 'Panda', names: ['psctrl', 'pavsrv'] },
+  { label: 'Avira', names: ['avguard', 'avgnt'] },
+  { label: 'F-Secure', names: ['fshoster', 'fsorsp'] },
+  { label: 'Malwarebytes', names: ['mbam', 'malwarebytes'] },
+  { label: 'CrowdStrike Falcon', names: ['csfalconservice', 'falcon'] },
+  { label: 'SentinelOne', names: ['sentinelagent', 'sentinelctl'] },
+  { label: 'Cylance', names: ['cylance'] },
+  { label: 'Webroot', names: ['wrsa', 'webroot'] },
+  { label: 'K7 Security', names: ['k7tsmngr', 'k7avis'] },
+  { label: 'eScan', names: ['escan', 'mwav'] },
+  { label: 'FortiClient', names: ['forticlient', 'fortitray'] },
+  { label: 'Zscaler', names: ['zscaler', 'zstatus'] },
+  { label: 'TeamViewer', names: ['teamviewer'] },
+  { label: 'AnyDesk', names: ['anydesk'] },
+];
+
+const DEFAULT_IGNORED_SECURITY_PROCESSES = [
+  'msmpeng',
+  'msascui',
+  'securityhealthservice',
+  'securityhealthsystray',
+  'windefend',
+];
+
+const defenderProcesses = new Set([
+  'msmpeng',
+  'msascui',
+  'securityhealthservice',
+  'securityhealthsystray',
+  'windefend',
+]);
+
+const blockerAlertHistory = new Map();
+let securityScanInterval;
+
+// Electron Related (declared here so the alert helpers can use them)
+let mainWindow;
+let tray;
+app.isQuiting = false;
+
+function notifyBlocker(reason, message, options = {}) {
+  const { detail = '', once = false, balloon = true } = options;
+  const now = Date.now();
+  const lastAlertedAt = blockerAlertHistory.get(reason);
+
+  // Avoid spamming the same warning from repeated capture failures/scans.
+  if (
+    lastAlertedAt &&
+    (once || now - lastAlertedAt < BLOCKER_ALERT_COOLDOWN_MS)
+  ) {
+    return;
+  }
+
+  blockerAlertHistory.set(reason, now);
+
+  const content = detail ? `${message} ${detail}` : message;
+
+  try {
+    if (balloon && tray && !tray.isDestroyed()) {
+      tray.displayBalloon({
+        iconType: 'warning',
+        title: 'Activity Tracker may be blocked',
+        content,
+      });
+    }
+  } catch (error) {
+    console.error('Failed to show blocker tray alert:', error);
+  }
+
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('blocker-alert', { reason, message, detail });
+    }
+  } catch (error) {
+    console.error('Failed to send blocker alert to renderer:', error);
+  }
+}
+
+function getRunningProcessNames() {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      execFile(
+        'tasklist',
+        ['/FO', 'CSV', '/NH'],
+        { timeout: 10000, windowsHide: true },
+        (error, stdout) => {
+          if (error) return resolve([]);
+
+          resolve(
+            stdout
+              .split(/\r?\n/)
+              .map((line) =>
+                line.split(',')[0]?.replace(/"/g, '').trim().toLowerCase()
+              )
+              .filter(Boolean)
+          );
+        }
+      );
+      return;
+    }
+
+    execFile('ps', ['-axo', 'comm='], { timeout: 10000 }, (error, stdout) => {
+      if (error) return resolve([]);
+
+      resolve(
+        stdout
+          .split(/\r?\n/)
+          .map((line) => path.basename(line.trim()).toLowerCase())
+          .filter(Boolean)
+      );
+    });
+  });
+}
+
+async function checkForBlockingSoftware() {
+  const runningProcesses = await getRunningProcessNames();
+  if (!runningProcesses.length) return;
+
+  const ignoredProcesses = new Set(
+    ALERT_ON_WINDOWS_DEFENDER
+      ? DEFAULT_IGNORED_SECURITY_PROCESSES.filter(
+          (name) => !defenderProcesses.has(name)
+        )
+      : DEFAULT_IGNORED_SECURITY_PROCESSES
+  );
+
+  for (const { label, names } of SECURITY_PROCESS_SIGNATURES) {
+    const matched = runningProcesses.find((processName) => {
+      const normalized = processName.replace(/\.exe$/, '').toLowerCase();
+
+      if (ignoredProcesses.has(normalized)) return false;
+
+      return names.some((name) => normalized.startsWith(name));
+    });
+
+    if (matched) {
+      notifyBlocker(
+        `security-software:${label}`,
+        `${label} is running and may be blocking Activity Tracker.`,
+        { once: true }
+      );
+    }
+  }
+}
 
 // ============= CRASH REPORTING SETUP =============
 
@@ -157,11 +330,6 @@ ipcMain.on('get-device-id', (event) => {
 
 // Offline & Online
 let isOffline = false;
-
-// Electron Related
-let mainWindow;
-let tray;
-app.isQuiting = false;
 
 // Renderer Data
 let isLogging = false;
@@ -894,6 +1062,12 @@ async function createWindow() {
         });
       }
 
+      notifyBlocker(
+        'renderer-process',
+        'The tracker window ran out of memory and is restarting. If this repeats, check your antivirus or security software.',
+        { detail: 'Automatic restart in progress.', balloon: false }
+      );
+
       setTimeout(() => {
         try {
           if (tray) tray.destroy();
@@ -905,6 +1079,12 @@ async function createWindow() {
         }
       }, 5000);
     } else {
+      notifyBlocker(
+        'renderer-process',
+        'The tracker window stopped unexpectedly. Antivirus or another app may be blocking Activity Tracker.',
+        { detail: `Reason: ${details.reason}` }
+      );
+
       if (!mainWindow.isDestroyed()) mainWindow.reload();
     }
   });
@@ -1012,6 +1192,14 @@ if (!gotTheLock) {
     await createWindow();
     createTray();
 
+    // Check for interfering security/remote-control software on start and
+    // periodically afterwards (e.g. if antivirus is installed while running).
+    setTimeout(checkForBlockingSoftware, SECURITY_SCAN_DELAY_MS);
+    securityScanInterval = setInterval(
+      checkForBlockingSoftware,
+      SECURITY_SCAN_INTERVAL_MS
+    );
+
     powerMonitor.on('suspend', () => {
       mainWindow.webContents.send('windows-sleep-mode', true);
     });
@@ -1066,6 +1254,10 @@ if (!gotTheLock) {
       clearInterval(appWebsiteDetailsInterval);
       appWebsiteDetailsInterval = null;
     }
+    if (securityScanInterval) {
+      clearInterval(securityScanInterval);
+      securityScanInterval = null;
+    }
   });
 
   app.on('activate', () => {
@@ -1081,6 +1273,15 @@ if (!gotTheLock) {
       reason: details.reason,
       exitCode: details.exitCode,
     });
+
+    notifyBlocker(
+      'child-process',
+      'A tracker component stopped unexpectedly. Antivirus or another app may be blocking Activity Tracker.',
+      {
+        detail: `Type: ${details.type}, reason: ${details.reason}`,
+        balloon: false,
+      }
+    );
 
     if (tray) {
       tray.displayBalloon({
@@ -1232,6 +1433,26 @@ async function getScrollTracker() {
 
     child.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
+
+      if (code !== 0 && !app.isQuiting) {
+        notifyBlocker(
+          'input-monitor',
+          'The input monitoring helper stopped unexpectedly. Antivirus or another app may be blocking Activity Tracker.',
+          { detail: `Exit code: ${code}` }
+        );
+      }
+    });
+
+    child.on('error', (error) => {
+      console.error('Failed to start input monitoring helper:', error);
+
+      if (!app.isQuiting) {
+        notifyBlocker(
+          'input-monitor',
+          'The input monitoring helper could not start. Antivirus or another app may be blocking Activity Tracker.',
+          { detail: error?.message }
+        );
+      }
     });
   } else {
     const child = spawn('python', ['main/scroll_tracker.py']);
@@ -1251,6 +1472,26 @@ async function getScrollTracker() {
 
     child.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
+
+      if (code !== 0 && !app.isQuiting) {
+        notifyBlocker(
+          'input-monitor',
+          'The input monitoring helper stopped unexpectedly. Antivirus or another app may be blocking Activity Tracker.',
+          { detail: `Exit code: ${code}` }
+        );
+      }
+    });
+
+    child.on('error', (error) => {
+      console.error('Failed to start input monitoring helper:', error);
+
+      if (!app.isQuiting) {
+        notifyBlocker(
+          'input-monitor',
+          'The input monitoring helper could not start. Antivirus or another app may be blocking Activity Tracker.',
+          { detail: error?.message }
+        );
+      }
     });
   }
 }
@@ -1282,7 +1523,26 @@ async function captureAndSaveScreenshot() {
       captureOptions.thumbnailSize = { width: 1280, height: 720 };
     }
 
-    const sources = await desktopCapturer.getSources(captureOptions);
+    let sources;
+    try {
+      sources = await desktopCapturer.getSources(captureOptions);
+    } catch (error) {
+      notifyBlocker(
+        'screen-capture',
+        'Screen capture failed. Antivirus or another app may be blocking Activity Tracker.',
+        { detail: error?.message }
+      );
+      throw error;
+    }
+
+    if (!sources || sources.length === 0) {
+      notifyBlocker(
+        'screen-capture',
+        'Screen capture returned no screens. Antivirus or another app may be blocking Activity Tracker.'
+      );
+      return;
+    }
+
     let primaryDisplay;
 
     if (screenshotType === 'BACKGROUND') {
