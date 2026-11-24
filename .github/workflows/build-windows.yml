@@ -1,3 +1,4 @@
+
 name: Build Activity Tracker Windows EXE
 
 "on":
@@ -10,7 +11,7 @@ name: Build Activity Tracker Windows EXE
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
@@ -26,6 +27,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Configure Visual Studio
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Configure node-gyp
+        shell: pwsh
+        run: |
+          echo "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
+          echo "npm_config_msvs_version=2022" >> $env:GITHUB_ENV
 
       - name: Install Node dependencies
         run: npm ci
