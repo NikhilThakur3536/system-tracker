@@ -61,14 +61,14 @@
       "!**/node_modules/*/{test,__tests__,tests}/**"
     ],
     "extraResources": [
-      {
-        "from": "dist",
-        "to": "resources/dist",
-        "filter": [
-          "scroll_tracker*"
-        ]
-      }
+  {
+    "from": "python-dist",
+    "to": "resources/dist",
+    "filter": [
+      "scroll_tracker.exe"
     ]
+  }
+]
   },
   "keywords": [],
   "author": "",
