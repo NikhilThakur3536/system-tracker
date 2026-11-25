@@ -7,7 +7,7 @@ export const BASE_URL = 'https://webtrackerprod.infoware.xyz';
 // API & Tracker related constants
 export const API_BASE_URL = `${BASE_URL}/api`;
 
-export const TRACKER_VERSION = '1.1.9';
+export const TRACKER_VERSION = '1.2.0';
 
 export const DEFAULT_SCREENSHOT_TYPE = 'SCREENSHOT';
 
