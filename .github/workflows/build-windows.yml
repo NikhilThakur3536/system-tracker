@@ -40,13 +40,31 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Install PyInstaller
-        run: python -m pip install pyinstaller
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
 
       - name: Build Windows application
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Verify scroll helper starts
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "python-dist/scroll_tracker.exe").Path
+          $stdout = Join-Path $env:RUNNER_TEMP "scroll-helper.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "scroll-helper.stderr.log"
+          $proc = Start-Process -FilePath $exe -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 3
+          taskkill /PID $proc.Id /T /F > $null 2>&1
+          $logs = ""
+          foreach ($file in @($stdout, $stderr)) {
+            if (Test-Path $file) { $logs += (Get-Content $file -Raw) }
+          }
+          Write-Host $logs
+          if ($logs -match "ModuleNotFoundError|ImportError|No module named") {
+            throw "scroll_tracker.exe is missing a Python module. Check requirements.txt."
+          }
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4

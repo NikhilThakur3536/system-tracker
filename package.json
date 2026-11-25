@@ -61,19 +61,20 @@
       "!**/node_modules/*/{test,__tests__,tests}/**"
     ],
     "extraResources": [
-  {
-    "from": "python-dist",
-    "to": "resources/dist",
-    "filter": [
-      "scroll_tracker.exe"
+      {
+        "from": "python-dist",
+        "to": "resources/dist",
+        "filter": [
+          "scroll_tracker.exe"
+        ]
+      }
     ]
-  }
-]
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@electron/rebuild": "^4.2.1",
     "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
     "electron": "^33.0.2",
