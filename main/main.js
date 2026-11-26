@@ -7,11 +7,80 @@ const {
   Tray,
   Menu,
   crashReporter,
+  nativeImage,
 } = require('electron');
 const { machineIdSync } = require('node-machine-id');
 //updates
 const sharp = require('sharp');
-const store = require('electron-settings');
+const rawSettings = require('electron-settings');
+
+// ------- Safe settings store -------
+// electron-settings saves by writing a temp file and renaming it over
+// settings.json. On Windows that rename fails with EPERM/EBUSY when two saves
+// overlap or antivirus briefly locks the file. All writes therefore go
+// through one queue (never two at once) and are retried with a short backoff.
+const RETRYABLE_FS_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const SETTINGS_WRITE_ATTEMPTS = 6; // waits 50, 100, 200, 400, 800 ms
+
+function isRetryableFsError(error) {
+  return RETRYABLE_FS_CODES.has(error?.code);
+}
+
+async function withSettingsRetry(write) {
+  let delay = 50;
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await write();
+    } catch (error) {
+      if (!isRetryableFsError(error) || attempt >= SETTINGS_WRITE_ATTEMPTS) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withSettingsRetrySync(write) {
+  let delay = 50;
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return write();
+    } catch (error) {
+      if (!isRetryableFsError(error) || attempt >= SETTINGS_WRITE_ATTEMPTS) {
+        throw error;
+      }
+      sleepSync(delay);
+      delay *= 2;
+    }
+  }
+}
+
+let settingsWriteChain = Promise.resolve();
+
+function queueSettingsWrite(write) {
+  const run = settingsWriteChain.then(
+    () => withSettingsRetry(write),
+    () => withSettingsRetry(write)
+  );
+  settingsWriteChain = run.catch(() => {});
+  return run;
+}
+
+const store = {
+  get: (...args) => rawSettings.get(...args),
+  getSync: (...args) => rawSettings.getSync(...args),
+  set: (...args) => queueSettingsWrite(() => rawSettings.set(...args)),
+  reset: (...args) => queueSettingsWrite(() => rawSettings.reset(...args)),
+  setSync: (...args) =>
+    withSettingsRetrySync(() => rawSettings.setSync(...args)),
+};
 const path = require('path');
 const { GlobalKeyboardListener } = require('node-global-key-listener');
 const moment = require('moment');
@@ -1495,6 +1564,32 @@ async function fetchCaptureInterval() {
   }
 }
 
+// The tray/window icon. build/icon.ico is the installer's buildResources
+// folder, which electron-builder does not copy into app.asar, so packaged
+// builds fall back to the PNG that ships with the UI (out/assets/images).
+// A missing icon must never stop startup (it used to abort the 'ready'
+// handler before the scroll helper was started).
+function getAppIcon(size) {
+  const candidates = [
+    getIconPath(),
+    path.join(__dirname, '..', 'out', 'assets', 'images', 'icon.png'),
+    path.join(__dirname, '..', 'public', 'assets', 'images', 'icon.png'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const image = nativeImage.createFromPath(candidate);
+      if (!image.isEmpty()) {
+        return size ? image.resize({ width: size, height: size }) : image;
+      }
+    } catch (error) {
+      // Try the next candidate.
+    }
+  }
+
+  return nativeImage.createEmpty();
+}
+
 function getIconPath() {
   return path.join(__dirname, '..', 'build', 'icon.ico');
 }
@@ -1529,7 +1624,7 @@ async function createMainWindow() {
     height: 600,
     show: false,
     title: 'Activity Tracker - Digital Links',
-    icon: getIconPath(),
+    icon: getAppIcon(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -1719,7 +1814,7 @@ async function startPostWindowTasks() {
 }
 
 function createTray() {
-  tray = new Tray(getIconPath());
+  tray = new Tray(getAppIcon(16));
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -1859,8 +1954,25 @@ app.on('second-instance', () => {
 });
 
 app.on('ready', async () => {
+  // Start the scroll helper first, so nothing later in this handler can stop
+  // it from starting (it only runs in the copy that owns the instance lock).
+  startScrollTracker();
+
   await createWindow();
-  createTray();
+
+  try {
+    createTray();
+  } catch (error) {
+    console.error('Failed to create tray icon:', error);
+    reportIssue({
+      id: 'tray-failed',
+      severity: 'warning',
+      title: 'Tray icon could not be created',
+      message:
+        'Activity Tracker is running, but its icon is missing from the taskbar tray.',
+      detail: error?.message,
+    });
+  }
 
   // Tell the user if the last run ended in an automatic restart.
   reportRestartNoticeIfAny();
@@ -1873,9 +1985,6 @@ app.on('ready', async () => {
     checkForBlockingSoftware,
     SECURITY_SCAN_INTERVAL_MS
   );
-
-  // Start the scroll helper only in the copy that owns the single-instance lock.
-  startScrollTracker();
 
   powerMonitor.on('suspend', () => {
     isSystemSuspended = true;
@@ -2798,7 +2907,10 @@ function stopAppWebsiteDetailsInterval() {
 
 ipcMain.handle('start-logging', async () => {
   cancelPendingStatsWork();
-  await store.set('stats', initialStats);
+  // A failed settings write must not stop tracking from starting.
+  await store
+    .set('stats', initialStats)
+    .catch((error) => reportSettingsWriteFailure(error));
   isLogging = true;
   clickCount = 0;
   scrollCount = 0;
@@ -2836,7 +2948,9 @@ ipcMain.handle('restart-logging', async () => {
 
 ipcMain.handle('clear-store-stats', async () => {
   cancelPendingStatsWork();
-  await store.set('stats', initialStats);
+  await store
+    .set('stats', initialStats)
+    .catch((error) => reportSettingsWriteFailure(error));
 });
 
 ipcMain.handle('get-location', async () => {
@@ -2861,7 +2975,7 @@ ipcMain.on('stop-logging', () => {
   stopScreenshotCapture();
   stopAppWebsiteDetailsInterval();
   stats = initialStats;
-  store.reset('stats');
+  store.reset('stats').catch((error) => reportSettingsWriteFailure(error));
 });
 
 ipcMain.handle('get-initial-stats', async () => {
@@ -2922,9 +3036,19 @@ ipcMain.on('show-tray-alert', () => {
 });
 
 function saveStats(stats) {
-  store
-    .set('stats', stats)
-    .catch((error) => console.error('Failed to save stats:', error));
+  store.set('stats', stats).catch((error) => reportSettingsWriteFailure(error));
+}
+
+function reportSettingsWriteFailure(error) {
+  console.error('Failed to save settings:', error);
+  reportIssue({
+    id: 'settings-write-failed',
+    severity: 'warning',
+    title: 'Could not save tracker settings',
+    message:
+      'Activity Tracker could not update its settings file. Tracking continues. If this keeps happening, antivirus may be locking the file.',
+    detail: error?.message,
+  });
 }
 
 async function loadStats() {
