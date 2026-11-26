@@ -8,7 +8,6 @@ import Forbidden403 from '../components/ActivityTracker/Forbidden403';
 import { sendRestartSessionRequest } from '../redux/activity/activityActions';
 import ApiErrorLogger from '../components/ApiErrorLogger';
 import ApiSuccessLogger from '../components/SuccessToast';
-import BlockerAlert from '../components/BlockerAlert';
 
 const ActivityLogger = () => {
   const [domainId, setDomainId] = useState(null);
@@ -22,7 +21,6 @@ const ActivityLogger = () => {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSleepMode, setIsSleepMode] = useState(false);
-  const [blockerAlert, setBlockerAlert] = useState(null);
 
   useEffect(() => {
     dispatch(getAuthDetails());
@@ -62,20 +60,6 @@ const ActivityLogger = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const handleBlockerAlert = (alert) => setBlockerAlert(alert);
-
-    if (typeof window !== 'undefined' && window?.electronAPI) {
-      window.electronAPI.onBlockerAlert?.(handleBlockerAlert);
-    }
-
-    return () => {
-      if (typeof window !== 'undefined' && window?.electronAPI) {
-        window.electronAPI.removeBlockerAlertListener?.();
-      }
-    };
-  }, []);
-
   const [apiError, setApiError] = useState(null);
   const [sessionStoppageSuccess, setSessionStoppageSuccess] = useState(null);
 
@@ -109,8 +93,6 @@ const ActivityLogger = () => {
 
   return (
     <SyncLoader isSyncing={isSyncing}>
-      <BlockerAlert alert={blockerAlert} />
-
       {apiError ? (
         <ApiErrorLogger error={apiError} onClose={() => setApiError(null)} />
       ) : null}

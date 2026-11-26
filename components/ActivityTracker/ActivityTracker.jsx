@@ -93,15 +93,17 @@ function ActivityTracker({
       setStats(stats);
     };
 
+    let unsubscribe;
+
     if (typeof window !== 'undefined' && window?.electronAPI) {
-      window?.electronAPI?.onUpdateStats(handleStatsUpdate);
+      unsubscribe = window?.electronAPI?.onUpdateStats(handleStatsUpdate);
       window.electronAPI.getInitialStats().then(handleStatsUpdate);
     }
 
+    // Remove this listener on unmount (the screen remounts after every
+    // sleep/wake, so leaving it would stack listeners and leak memory).
     return () => {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        window?.electronAPI?.onUpdateStats(handleStatsUpdate);
-      }
+      if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
 

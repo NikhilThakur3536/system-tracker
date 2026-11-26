@@ -15,7 +15,10 @@
   "build": {
     "appId": "com.infoware-logger.123",
     "asarUnpack": [
-      "**/better-sqlite3/**"
+      "**/better-sqlite3/**",
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*",
+      "**/node_modules/node-global-key-listener/bin/**"
     ],
     "productName": "Activity Tracker - Digital Links",
     "directories": {
